@@ -54,7 +54,7 @@ Missing（項目欠落）と ReadError（読取失敗）を区別します。読
 
 ## 推奨ファイル配置
 
-以下は将来追加するファイルです。現段階で Lua ファイルや依存バイナリは作成しません。
+以下は製品版に向けた配置です。Phase 1 では `Info.lua` とルートの `ExportServiceProvider.lua` のみを実装し、後続のモジュールや依存バイナリは作成しません。
 
 ```text
 src/FujiPhotoRenamer.lrplugin/
@@ -76,3 +76,11 @@ src/FujiPhotoRenamer.lrplugin/
 ```
 
 配布時のみ追加する `vendor/` と第三者ライセンスは [配布設計](packaging.md) を参照してください。モジュールごとにクラス階層やインターフェースファイルを作る必要はありません。
+
+## Phase 1 の実装上の限定
+
+最小 SDK 検証のため、設定 UI と書き出し処理をルートの `ExportServiceProvider.lua` に置きます。これはユーザー指定の最小構成に合わせた一時的な例外です。ExifTool / core の処理を追加せず、製品版の UI 分離は Phase 8、adapter への統合は Phase 9 で行います。
+
+`showSections` で標準の `exportLocation` を表示します。`updateExportSettings` で最終保存先設定をセッション用 `phase1Destination` に退避してから、一時レンダリングへ切り替えます。これはユーザーの保存先拡張指示に基づく変更で、元画像フォルダーへ直接レンダリングさせないためです。`updateExportSettings` でも `LR_format = JPEG` と `LR_export_destinationType = tempFolder` を固定し、他サービスの設定混入を防ぎます。`processRenderedPhotos` は SDK が用意するタスクで動き、元パスは読み取りだけ、保存は `LrFileUtils.copy` のみです。元画像・レンダリング結果の移動・削除はせず、一時出力の清掃は Lightroom に任せます。「元の写真と同じフォルダー」は写真ごとの元パスの親を使い、明示的に指定されたサブフォルダーだけ必要時に作成します。
+
+SDK 契約の確認と実機での成立性は分けます。特に `copy` の競合時動作、コピー失敗時の部分ファイル、リンクの扱いは実機ゲートに残します。[Phase 1 記録](phase1-lightroom.md)

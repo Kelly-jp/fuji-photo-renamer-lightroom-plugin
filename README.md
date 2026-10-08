@@ -2,7 +2,7 @@
 
 Adobe Lightroom Classic の写真書き出し時に、ExifTool で XMP / RAW / JPG のメタデータを取得し、ユーザー指定のテンプレートに従って出力ファイルを命名するプラグインです。
 
-**現在は開発基盤・設計文書のみです。Lua 本体は未実装で、インストールできるプラグインや配布バイナリはありません。**
+**Phase 1 の最小 SDK 検証プラグインを実装しました。macOS では、元フォルダーのサブフォルダーへの保存、同名時の非上書き、元 RAW / XMP のチェックサム不変についてユーザーから確認報告があります。その他の実機検証は未完了です。ExifTool、テンプレート、C2PA 処理、製品向け配布は未実装です。**
 
 ## 対象と機能
 
@@ -30,13 +30,32 @@ Adobe Lightroom Classic の写真書き出し時に、ExifTool で XMP / RAW / J
 
 利用できるトークンと欠落時の扱いは [トークン仕様](docs/tokens.md) を参照してください。元画像を変更せず、既存出力も暗黙に上書きしません。
 
+## Phase 1 の読み込みと検証
+
+1. Lightroom Classic の「ファイル → プラグインマネージャー → 追加」で `src/FujiPhotoRenamer.lrplugin/` を選択する。
+2. 複製した元画像を専用カタログへ登録し、書き出し先として「Fuji Photo Renamer — Phase 1」を選ぶ。
+3. 標準の「書き出し場所」で「特定のフォルダー」または「元の写真と同じフォルダー」を選び、必要なら「サブフォルダーに保存」を指定して JPEG を書き出す。
+4. 指定先の `test_DSCF1234.jpg` のような出力と元画像のハッシュ不変を確認する。同名ファイルがある場合は失敗する。
+
+「後でフォルダーを選択」やデスクトップ等の保存先も利用できます。同名ファイルは標準の「既存のファイル」の設定にかかわらず拒否します。この検証版ではカタログへの追加とスタック追加は適用しません。旧版からはプラグインを再読み込みし、書き出し画面を開き直してください。
+
+SDK 宣言の最低バージョンは 11.0 です。これは確認済みの Classic 動作バージョンを意味しません。完全な確認手順、API の出典、未解決事項は [Phase 1 検証記録](docs/phase1-lightroom.md) を参照してください。
+
 ## 開発の開始点
 
 1. [要件](docs/requirements.md) と [アーキテクチャ](docs/architecture.md) を読む。
 2. [技術検証項目](docs/testing.md#技術検証項目) の未確認事項を確認する。
-3. 実装開始の指示後に Adobe 公式 SDK と同梱サンプルを確認し、対象 SDK / Lightroom / Lua のバージョンを決める。
+3. Phase 1 の実機結果を記録し、成立性を確認してから次フェーズの指示を待つ。
 
-現時点ではビルド、実行、テスト、Lint コマンドはありません。文書変更の確認には次を使います。
+プラグインは Lightroom 内で実行します。ビルドや Lint の自動化はありません。Lua 5.1 の実行環境を用意した場合、リポジトリのルートで以下を実行できます（Lua 本体は配布物に同梱しません）。
+
+```sh
+lua -v
+luac -p src/FujiPhotoRenamer.lrplugin/Info.lua src/FujiPhotoRenamer.lrplugin/ExportServiceProvider.lua
+lua tests/integration/phase1_provider_test.lua
+```
+
+`lua -v` が Lua 5.1 であることを確認してください。境界テストは SDK の実装を置き換え、エラーと安全な呼び出し順を検証するもので、JPEG の生成や SDK の非上書き動作は確認できません。差分確認には次を使います。
 
 ```sh
 git status --short
@@ -60,9 +79,12 @@ fuji-photo-renamer-lightroom-plugin/
 │   ├── tokens.md
 │   ├── c2pa.md
 │   ├── packaging.md
-│   └── testing.md
+│   ├── testing.md
+│   └── phase1-lightroom.md
 ├── src/
 │   └── FujiPhotoRenamer.lrplugin/
+│       ├── Info.lua
+│       ├── ExportServiceProvider.lua
 │       ├── core/
 │       ├── infrastructure/
 │       ├── ui/
@@ -75,7 +97,7 @@ fuji-photo-renamer-lightroom-plugin/
 └── scripts/
 ```
 
-空ディレクトリは `.gitkeep` で保持します。各モジュールの推奨ファイル配置は [設計](docs/architecture.md#推奨ファイル配置) に記載し、まだ `.lua` ファイルは作りません。
+空ディレクトリは `.gitkeep` で保持します。製品版の推奨ファイル配置は [設計](docs/architecture.md#推奨ファイル配置) に記載しています。Phase 1 のみ最小構成のため provider をルートへ置きます。
 
 ## 設計文書
 
@@ -88,6 +110,7 @@ fuji-photo-renamer-lightroom-plugin/
 | [C2PA](docs/c2pa.md) | 削除対象の制限と検証 |
 | [配布](docs/packaging.md) | ExifTool 同梱、依存、ライセンス |
 | [テスト](docs/testing.md) | テスト方針と技術検証 6 項目 |
+| [Phase 1](docs/phase1-lightroom.md) | 最小 SDK 実装、API 出典、手動検証と判定 |
 
 ## ライセンス・公式資料
 
