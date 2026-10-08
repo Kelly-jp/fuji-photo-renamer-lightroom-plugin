@@ -2,20 +2,20 @@
 
 ## 対象と現在の作業範囲
 
-Adobe Lightroom Classic 専用の写真書き出しプラグインです。Lua / Lightroom Classic SDK を使い、Windows / macOS に対応します。ExifTool は配布物へ同梱します。現在は設計段階です。ユーザーが実装開始を指示するまで、Lua 本体、SDK 登録ファイル、動作する試作プラグインは追加しないでください。
+Adobe Lightroom Classic 専用の写真書き出しプラグインです。Lua / Lightroom Classic SDK を使い、Windows / macOS に対応します。ExifTool は配布物へ同梱します。ユーザーの指示により Phase 1 の最小 SDK 検証を実装しています。Phase 1 の結果報告後は作業を止め、成立性の確認と次の指示なしに Phase 2 以降を実装しないでください。
 
 ## 構成と設計の基準
 
-- `src/FujiPhotoRenamer.lrplugin/`: 将来のプラグイン本体。`core/`、`infrastructure/`、`ui/`、`lightroom/` に責務を分離します。
+- `src/FujiPhotoRenamer.lrplugin/`: プラグイン本体。Phase 1 はルートの `Info.lua` と `ExportServiceProvider.lua` のみを使用します。後続 Phase では `core/`、`infrastructure/`、`ui/`、`lightroom/` に責務を分離します。
 - `docs/`: 要件、設計、メタデータ解決、トークン、C2PA、配布、テストの仕様。
-- `tests/`: 将来の単体・結合テスト。`fixtures/metadata/`: 匿名化した入力と期待結果。
+- `tests/`: 単体・結合テスト。Phase 1 の SDK 境界テストと手動検証は `docs/phase1-lightroom.md` を参照。`fixtures/metadata/`: 匿名化した入力と期待結果。
 - `scripts/`: 将来の検証・配布用スクリプト。`CHANGELOG.md`: 変更履歴。
 
 変更前に関連文書を読み、仕様変更時は文書も更新してください。KISS、YAGNI、DRY を優先します。汎用フレームワーク、DI コンテナ、将来用途だけの抽象化は追加しません。core は SDK、ExifTool、ファイル I/O に依存しない純粋な Lua 処理として設計します。
 
 ## 開発・検証
 
-現在、ビルド、テスト、Lint の実行環境は未導入です。`git status --short`、`git diff`、`git diff --check` で差分を確認します。未導入のコマンドを実行可能として記載しないでください。Lua のバージョン、テストランナー、整形ツールは SDK 確認後に選定し、README に手順を追記します。
+Phase 1 の境界テストは Lua 5.1 で実行します。コマンドは README を参照してください。ビルド・Lint の自動化は未導入です。`git status --short`、`git diff`、`git diff --check` で差分を確認します。未導入のコマンドを実行可能として記載しないでください。Lua 5.1 互換を維持し、製品版のテストランナー・整形ツールは必要性を確認してから選定します。SDK のダブルを使ったテストを実機確認と呼ばないでください。
 
 実装時のインデントはスペース 4 個、モジュール名は `TemplateParser.lua` のように PascalCase、関数・変数は camelCase を基本とします。コメントは設計理由を説明します。テストは `tests/core/*_test.lua` の命名を予定し、正常系、欠落、不正入力、衝突、外部処理失敗を独立して検証します。詳細は `docs/testing.md` に従ってください。
 
