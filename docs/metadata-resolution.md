@@ -71,16 +71,28 @@ exiftool -j -G1 -s sample.jpg
 
 ExifTool 13.55 で許諾済み X-H2S RAF の Make / Model / LensMake / LensModel / FilmMode / Saturation を実取得し、グループ付きタグを確認しました。LensMake は FUJIFILM として取得でき、推定は不要でした。FilmMode = 0 は PROVIA として扱い、0 を欠落にしません。白黒・ACROS は確認済み Saturation コードを先に判定します。全機種・全レンズへ一般化しません。
 
-合成 JPEG / XMP でもタググループを確認しています。ラッパーの詳細な対応表は [Phase 2 記録](phase2-exiftool.md#確認したタグ対応) を参照してください。日時の暦検証・トークン書式、Composite LensID による推測、Phase 2 時点では入力探索・項目別マージは未実装でした。入力探索は Phase 3 に追加し、項目別マージは未実装です。XMP FilmSim は、実ファイルで確認した CRS の既知の LookName / CameraProfile に限って対応しています。採用する日付の有効性は後続の項目解決・トークン処理で検証するため、Phase 2 の文字列取得だけを妥当性確認済みとはみなしません。
+合成 JPEG / XMP でもタググループを確認しています。ラッパーの詳細な対応表は [Phase 2 記録](phase2-exiftool.md#確認したタグ対応) を参照してください。日時の暦検証・トークン書式、Composite LensID による推測、Phase 2 時点では入力探索・項目別マージは未実装でした。入力探索は Phase 3、項目別マージは Phase 4 に追加しました。XMP FilmSim は、実ファイルで確認した CRS の既知の LookName / CameraProfile に限って対応しています。採用する日付の有効性は後続の項目解決・トークン処理で検証するため、Phase 2 の文字列取得だけを妥当性確認済みとはみなしません。
 
 ### XMP の編集プロファイル
 
 2026-10-09 の修正で、Rust 版 fphoto-renamer の取得ロジックを参考に `XMP-crs:LookName`、`XMP-crs:CameraProfile`、`XMP-crs:CameraProfilesProfileName` を固定取得対象に追加しました。許諾された XMP の Camera PROVIA/Standard を PROVIA と解決しています。これはユーザーが現像で選択した編集プロファイルの解釈です。撮影時 MakerNotes とは採用元を区別します。
 
-既知名だけを対応させ、未知のカスタム名・Adobe Color 等は FilmSim として採用しません。XMP 内は Look 名を先に採用し、RAW / JPG は撮影時コードを優先します。異なるファイルの項目別マージは引き続き後続 Phase の責務です。[詳細な修正根拠](phase2-exiftool.md#xmp-filmsim-の修正2026-10-09)
+既知名だけを対応させ、未知のカスタム名・Adobe Color 等は FilmSim として採用しません。XMP 内は Look 名を先に採用します。RAF は撮影時コードを優先しますが、DNG / JPG は記録済みの既知の編集プロファイルを優先します。異なるファイルの項目別マージは引き続き後続 Phase の責務です。[詳細な修正根拠](phase2-exiftool.md#xmp-filmsim-の修正2026-10-09)
 
 ## Phase 3 の探索実装
 
 [Phase 3 記録](phase3-metadata-sources.md) のとおり、3 モードの RAW 探索、同階層の JPEG 探索、RAW / 元画像に隣接する XMP 探索を実装しました。元 RAW 入力は直接採用し、JPG 起点の階層設定を適用しません。ExifTool からは独立し、入力メタデータの読み取り・マージには進みません。
 
 stem の大小文字差は ASCII の大小文字だけ違う候補を明示的な曖昧エラーとして扱います。Unicode 正規化差は SDK での安全な同一性判定が未確認のため採用しません。同一性の重複排除は SDK で解決した正規パスの一致に限定し、ハードリンクを推定で同一としません。これらは初期の「stem 完全一致・推測しない」方針を具体化した制約です。
+
+## Phase 4 の項目統合実装
+
+`core/MetadataResolver.lua` を追加しました。入力元は xmp / raw / jpeg の metadata と任意の fieldSources を持つテーブルです。値なし・無効値は理由を記録して下位へ進み、入力の読取失敗は統合失敗とします。元データ・メーカー名は変更せず、結果と採用元を新しいテーブルで返します。
+
+規則を明確化しました。標準項目は Phase 2 の camelCase、追加項目は非空文字列キーのスカラーを保持します。iso は正の整数、focalLength は正の有限値、rating は 0〜5 の整数、その他のスカラーでは 0 / false を保持します。captureDateTime は暦・時刻を検証した完全な日時文字列を一つの入力から採用し、日付と時刻を合成しません。無効な日時の理由や対応形式は [Phase 4 記録](phase4-metadata-merge.md) を参照してください。
+
+### DNG の撮影時設定と現像設定の区別
+
+DNG が撮影時 MakerNotes と変更後 CRS プロファイルを両方持つケースでは、従来の撮影時コード優先が変更前の値を残す原因になり得ます。ユーザーの不具合報告に基づき DNG / JPG の読取境界で既知編集プロファイルを優先し、採用タグ・ファイルを診断へ表示します。単一ファイル内の意味の解決であり、core の入力元優先順位は維持します。
+
+古い sidecar XMP が高順位で採用されるケース、変更がカタログ内にしかなくファイルへ保存されていないケース、JPEG に現像プロファイルがないケースは、この修正だけでは決定できません。実ファイルで確認し、記録されていない値を画像の見た目から推定しません。

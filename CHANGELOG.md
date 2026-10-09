@@ -4,6 +4,9 @@
 
 ### Added
 
+- Phase 4 の純 Lua MetadataResolver と統合診断を追加。XMP → RAW → JPG の項目別採用、型・数値・日時検証、採用元・欠落・不採用理由を記録。
+- Phase 4 の core 59 件・macOS 合成連携 6 件のテストと仕様文書を追加。Phase 5 以降は未着手。
+
 - Phase 3 の読み取り専用 MetadataSourceResolver と探索診断メニューを追加。3 モード、RAF / DNG、XMP、拡張子大小文字、曖昧性検出に対応。
 - Phase 3 の境界 43 件・macOS 合成配置 9 件のテストと検証記録を追加。Phase 4 以降は未着手。
 
@@ -20,6 +23,8 @@
 - core / infrastructure / ui / lightroom と単体・結合テストのディレクトリを追加。本体コードは未実装。
 
 ### Changed
+
+- DNG / JPG の既知編集プロファイルを旧 MakerNotes より優先し、FilmSim の採用ファイル・タグを統合診断へ追加。ユーザーが DNG 書き出しの実ケースで変更後 FilmSim 取得成功を確認。
 
 - 新規 Phase3Diagnostic が SDK に認識されないエラーへ対処し、既存 Phase2Diagnostic を共通入口に変更。読取・探索処理は別ファイルを絶対パスで読み込む方式へ統一。
 

@@ -150,7 +150,7 @@ dkjson はルートの `dkjson.lua` へ移し、`require 'dkjson'` で取得し�
 
 許諾された実 XMP の `XMP-crs:CameraProfile = Camera PROVIA/Standard` を ExifTool 13.55 で確認し、ラッパー経由で PROVIA を取得しました。RAW / XMP の前後 SHA-256 が一致しています。個人素材のパス・撮影日時・編集内容はフィクスチャにコピーしていません。
 
-XMP の優先順位は、既知の LookName → CameraProfile → CameraProfilesProfileName → 取得できる MakerNotes のコードです。Look の構造内 Name も ExifTool が出す LookName で取得できることを合成 sidecar で確認しました。RAW / JPEG は従来の MakerNotes を優先し、コードが取得できない場合だけ既知プロファイルを使います。採用元のタグを fieldSources に保持します。
+XMP の優先順位は、既知の LookName → CameraProfile → CameraProfilesProfileName → 取得できる MakerNotes のコードです。Look の構造内 Name も ExifTool が出す LookName で取得できることを合成 sidecar で確認しました。RAF は撮影時 MakerNotes を優先します。DNG / JPEG は既知の変更後 CRS プロファイルを優先し、見つからない場合は撮影時コードを使います。採用元のタグを fieldSources に保持します。
 
 Camera 接頭辞、空白、明示した末尾 v2 等の数値バージョンを整理した後、明示的な別名表で完全一致比較します。PROVIA/Standard、Velvia/Vivid、ASTIA/Soft、CLASSIC Neg、REALA ACE v2、ACROS のフィルター等を既存の内部名へ対応させます。Adobe Color、Adobe Standard、未知のカスタム名は nil と診断にします。複数プロファイル名から勝手に一つを選びません。
 
@@ -163,3 +163,11 @@ Camera 接頭辞、空白、明示した末尾 v2 等の数値バージョンを
 ユーザーが Lightroom Classic の診断メニューで、問題が起きたものと同じ XMP を再選択し、FilmSim の値を取得できたことを報告しました。これにより、診断メニュー起動、依存モジュールの読み込み、ExifTool による XMP 読み取り、修正後の FilmSim 表示をユーザー報告として確認しています。表示文字列や OS / Classic の詳細バージョンは今回の報告には添付されていません。
 
 エージェントが確認済みの同ファイルの PROVIA 取得・SHA-256 不変と、ユーザーの Lightroom 内での取得成功は別の証拠として扱います。Windows、別機種、他の編集プロファイル、Lightroom 内の異常終了・時間超過等の未確認項目は継続します。Phase 3 は新たな指示を受けるまで開始しません。
+
+## DNG・書き出し JPEG の変更後プロファイル（2026-10-09）
+
+ユーザーより DNG の FilmSim を変更して書き出した JPEG を統合診断へ渡すと、変更前の FilmSim が採用されたとの報告がありました。Rust 版の xmp_reader は編集 Look / CameraProfile を優先しますが、exif_reader は MakerNotes 等を先に採用します。したがって汎用 EXIF 読取をそのまま移植すれば解消するとは判断していません。
+
+プラグインにも DNG / JPEG の MakerNotes 優先処理があったため、既知の CRS LookName / CameraProfile / CameraProfilesProfileName がある場合はそちらを優先するよう変更しました。RAF は撮影時設定を優先したままです。ファイル間の XMP → RAW → JPG の順序は変更しません。未知プロファイルを既知 FilmSim と推定する処理は追加しません。
+
+元 MakerNotes が PROVIA、DNG 内の編集プロファイルが CLASSIC Neg / ACROS のケースを正規化 JSON で再現し、採用値・タグを検証しました。変更後プロファイルがない DNG の撮影時設定も維持します。これは合成データでの再現であり、今回の問題が起きた実 DNG / JPEG のタグは未確認です。その後ユーザーが DNG 書き出しの実ケースで変更後 FilmSim の取得成功を報告しました。実タグの直接検査は未実施です。
