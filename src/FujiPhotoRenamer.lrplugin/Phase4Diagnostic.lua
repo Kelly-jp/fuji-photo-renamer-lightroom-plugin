@@ -70,11 +70,13 @@ return function()
     end
     local parser = loadModule('core/TemplateParser.lua')
     local tokenResolver = loadModule('core/TokenResolver.lua', { normalizer = normalizer, metadataResolver = resolver })
+    local sanitizer = loadModule('core/FilenameSanitizer.lua')
+    local collisions = loadModule('core/CollisionResolver.lua', { sanitizer = sanitizer })
     local template = '{DateTime}_{CameraMaker}_{Camera}_{LensMaker}_{Lens}_{Original}_{Sequence}.{Extension}'
     local parsed = assert(parser.parse(template))
     lines[#lines + 1] = '\nファイル名候補（Phase 6）：保存・リネームは行いません。'
     lines[#lines + 1] = 'テンプレート：' .. template
-    lines[#lines + 1] = '出力は JPEG を想定、Sequence は仮値 0001。禁止文字・衝突の処理は未適用です。'
+    lines[#lines + 1] = '出力は JPEG を想定、Sequence は仮値 0001。Phase 6 候補は未整形です。'
     for _, omit in ipairs { true, false } do
         local preview, previewError = tokenResolver.resolve(parsed, result.metadata, {
             original = pathUtils.removeExtension(pathUtils.leafName(photos[1])),
@@ -85,10 +87,24 @@ return function()
             lines[#lines + 1] = label .. preview.filename
             lines[#lines + 1] = '空欄：' .. (#preview.missingTokens > 0 and table.concat(preview.missingTokens, ', ') or 'なし')
             lines[#lines + 1] = '省略：' .. (#preview.omittedTokens > 0 and table.concat(preview.omittedTokens, ', ') or 'なし')
+            local safe, safetyError = sanitizer.sanitize(preview.filename)
+            if safe then
+                lines[#lines + 1] = 'Phase 7 整形後：' .. safe.filename .. (safe.changed and '（整形あり）' or '（変更なし）')
+                -- This fixture demonstrates numbering without inspecting or reserving a real destination.
+                local first = assert(collisions.resolve(safe.filename, { existingNames = { safe.filename }, nameKey = function(name) return name end }))
+                local second = assert(collisions.resolve(safe.filename, {
+                    existingNames = { safe.filename }, reservedNames = { first.filename }, nameKey = function(name) return name end,
+                }))
+                lines[#lines + 1] = '同名ありを仮定した例：' .. first.filename
+                lines[#lines + 1] = '上の候補も使用済みと仮定した例：' .. second.filename
+            else
+                lines[#lines + 1] = 'Phase 7 整形エラー：' .. safetyError.code .. ' / ' .. safetyError.message
+            end
         else
             lines[#lines + 1] = label .. previewError.code .. ' / ' .. previewError.message
         end
     end
+    lines[#lines + 1] = 'Phase 7 の衝突例は仮想データです。実フォルダーの衝突・長さ制限は未確認で、保存は行いません。'
     for _, warning in ipairs(warnings) do lines[#lines + 1] = '警告：' .. warning end
     dialogs.message('Phase 4：項目単位の統合結果', table.concat(lines, '\n'), #warnings > 0 and 'warning' or 'info')
 end
