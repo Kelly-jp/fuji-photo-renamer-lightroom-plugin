@@ -6,7 +6,7 @@ end
 
 function Resolver.resolve(filename, options)
     if type(options) ~= 'table' or type(options.nameKey) ~= 'function' then
-        return failure('InvalidOptions', 'OS の名前比較規則に対応した純粋な nameKey 関数が必要です。')
+        return failure('InvalidOptions', '名前配列の比較キーを生成する純粋な nameKey 関数が必要です。')
     end
     local safe, err = sanitizer.sanitize(filename, options.limits)
     if not safe then return nil, err end

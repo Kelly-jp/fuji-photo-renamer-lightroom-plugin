@@ -72,15 +72,15 @@ return function()
     local tokenResolver = loadModule('core/TokenResolver.lua', { normalizer = normalizer, metadataResolver = resolver })
     local sanitizer = loadModule('core/FilenameSanitizer.lua')
     local collisions = loadModule('core/CollisionResolver.lua', { sanitizer = sanitizer })
-    local template = '{DateTime}_{CameraMaker}_{Camera}_{LensMaker}_{Lens}_{Original}_{Sequence}'
+    local template = '{DateTime}_{CameraMaker}_{Camera}_{LensMaker}_{Lens}_{Original}'
     local parsed = assert(parser.parse(template))
     lines[#lines + 1] = '\nファイル名候補（Phase 6）：保存・リネームは行いません。'
     lines[#lines + 1] = 'テンプレート：' .. template
-    lines[#lines + 1] = '出力は JPEG を想定、Sequence は仮値 0001。Phase 6 候補は未整形です。'
+    lines[#lines + 1] = '出力は JPEG を想定、番号は衝突時だけ付加します。Phase 6 候補は未整形です。'
     for _, omit in ipairs { true, false } do
         local preview, previewError = tokenResolver.resolve(parsed, result.metadata, {
             original = pathUtils.removeExtension(pathUtils.leafName(photos[1])),
-            extension = 'jpg', sequence = 1, omitDuplicateManufacturer = omit,
+            extension = 'jpg', omitDuplicateManufacturer = omit,
         })
         local label = '同一メーカーのレンズメーカー省略 ' .. (omit and 'ON' or 'OFF') .. '：'
         if preview then

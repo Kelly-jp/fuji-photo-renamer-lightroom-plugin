@@ -241,6 +241,20 @@ local function cleanup(workDirectory)
     return warnings
 end
 
+function ExifTool.resolveExecutablePath(options)
+    options = options or {}
+    if type(options) ~= 'table' then return failure('InvalidOptions', '設定はテーブルで指定してください。') end
+    local platform = context.platform
+    if not platform then return failure('UnsupportedPlatform', 'Windows / macOS のみ対応します。') end
+    local pluginPath = options.pluginPath or context.pluginPath
+    local path = options.executablePath
+        or LrPathUtils.child(pluginPath, platform == 'windows' and 'vendor/windows/exiftool.exe' or 'vendor/macos/exiftool')
+    if not validatePath(path) or LrFileUtils.exists(path) ~= 'file' then
+        return failure('ExecutableMissing', '同梱 ExifTool がありません。検証時は実行ファイルの絶対パスを指定してください。')
+    end
+    return path
+end
+
 local function readMetadata(inputPath, options)
     options = options or {}
     if type(options) ~= 'table' then return failure('InvalidOptions', '設定はテーブルで指定してください。') end
@@ -257,11 +271,8 @@ local function readMetadata(inputPath, options)
     local platform = context.platform
     if not platform then return failure('UnsupportedPlatform', 'Windows / macOS のみ対応します。') end
     local pluginPath = options.pluginPath or context.pluginPath
-    local executablePath = options.executablePath
-        or LrPathUtils.child(pluginPath, platform == 'windows' and 'vendor/windows/exiftool.exe' or 'vendor/macos/exiftool')
-    if not validatePath(executablePath) or LrFileUtils.exists(executablePath) ~= 'file' then
-        return failure('ExecutableMissing', '同梱 ExifTool がありません。検証時は実行ファイルの絶対パスを指定してください。')
-    end
+    local executablePath, executableError = ExifTool.resolveExecutablePath(options)
+    if not executablePath then return nil, executableError end
     local timeoutSeconds = options.timeoutSeconds or 30
     local workDirectory, workError = createWorkDirectory()
     if not workDirectory then return failure('WorkDirectoryError', workError) end

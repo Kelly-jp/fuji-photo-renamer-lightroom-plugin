@@ -6,134 +6,7 @@ local function assertEqual(actual, expected)
     assert(actual == expected, string.format('Expected %s, got %s', tostring(expected), tostring(actual)))
 end
 
-local function newHarness(options)
-    options = options or {}
-    local original = options.original or '/original/DSCF1234.RAF'
-    local rendered = options.rendered or '/temporary/DSCF1234.jpg'
-    local files = { ['/output'] = 'directory', [original] = 'file', [rendered] = 'file' }
-    local originalDirectory = original:match('^(.*)/[^/]+$')
-    if originalDirectory then files[originalDirectory] = 'directory' end
-    for _, name in ipairs { 'desktop', 'documents', 'home', 'pictures' } do
-        files['/standard/' .. name] = 'directory'
-    end
-    for path, kind in pairs(options.extraFiles or {}) do files[path] = kind end
-    for _, path in ipairs(options.originalPaths or {}) do
-        files[path] = 'file'
-        files[path:match('^(.*)/[^/]+$')] = 'directory'
-    end
-    if options.missingOriginal then files[original] = nil end
-    if options.missingRender then files[rendered] = nil end
-    if options.missingDirectory then files['/output'] = nil end
-    if options.collision then files['/output/test_DSCF1234.jpg'] = options.collision end
-    local state = { copies = {}, errors = {}, messages = {}, waits = 0, files = files, createdDirectories = {} }
-    local progress = {
-        isCanceled = function() return options.canceled or state.cancelAfterRender or state.cancelRequested end,
-        cancel = function() state.cancelRequested = true end,
-    }
-    local namespaces = {
-        LrFileUtils = {
-            exists = function(path) return files[path] or false end,
-            isReadable = function(path) return files[path] == 'file' and not options.unreadable end,
-            resolveAllAliases = function(path)
-                if options.alias and path == rendered then return original end
-                return path
-            end,
-            createAllDirectories = function(path)
-                state.createdDirectories[#state.createdDirectories + 1] = path
-                if options.createFailure then return false, 'Permission denied' end
-                if files[path] and files[path] ~= 'directory' then return false, 'File exists' end
-                files[path] = 'directory'
-                if options.cancelDuringCreate then state.cancelRequested = true end
-                return true
-            end,
-            copy = function(source, destination)
-                state.copies[#state.copies + 1] = { source, destination }
-                -- Emulate the documented no-overwrite contract, including a late collision.
-                if options.race then files[destination] = 'file' end
-                if files[destination] then return false, 'Destination exists' end
-                if options.copyException then error('Copy exception') end
-                if options.copyFailure then return false, 'Permission denied' end
-                files[destination] = 'file'
-                return true
-            end,
-        },
-        LrPathUtils = {
-            isAbsolute = function(path) return path:sub(1, 1) == '/' or path:match('^%a:[/\\]') ~= nil end,
-            leafName = function(path) return path:match('[^/\\]+$') end,
-            removeExtension = function(path) return (path:gsub('%.[^.]*$', '')) end,
-            extension = function(path) return path:match('%.([^.]*)$') or '' end,
-            parent = function(path) return path:match('^(.*)/[^/]+$') end,
-            getStandardFilePath = function(name) return '/standard/' .. name end,
-            child = function(parent, name) return parent .. '/' .. name end,
-            standardizePath = function(path) return path end,
-        },
-        LrTasks = { pcall = pcall, startAsyncTask = function(callback) callback() end },
-        LrDialogs = {
-            message = function(title, message, severity)
-                state.messages[#state.messages + 1] = { title, message, severity }
-            end,
-            runOpenPanel = function()
-                state.panelCount = (state.panelCount or 0) + 1
-                if options.panelException then error('Panel error') end
-                return options.selectedPaths
-            end,
-        },
-        LrView = { bind = function(key) return key end },
-    }
-    local environment = setmetatable({
-        _PLUGIN = { path = pluginDirectory:gsub('/$', '') },
-        import = function(name) return assert(namespaces[name], 'Unexpected SDK namespace: ' .. name) end,
-    }, { __index = _G })
-    local loader = assert(loadfile(pluginDirectory .. 'ExportServiceProvider.lua'))
-    setfenv(loader, environment)
-    state.provider = loader()
-    local rendition = {
-        wasSkipped = options.skipped,
-        photo = {
-            getRawMetadata = function(_, key)
-                assertEqual(key, 'path')
-                if options.metadataException then error('Metadata exception') end
-                if options.noPath then return nil end
-                return state.currentOriginal or original
-            end,
-        },
-        waitForRender = function()
-            state.waits = state.waits + 1
-            if options.removeBaseDuringRender then files['/output'] = nil end
-            if options.renderException then error('Render exception') end
-            if options.cancelDuringRender then state.cancelAfterRender = true end
-            if options.renderFailure then return false, 'Render failed' end
-            return true, rendered
-        end,
-        uploadFailed = function(_, message) state.errors[#state.errors + 1] = message end,
-    }
-    state.settings = {
-        LR_export_destinationType = options.destinationType or 'specificFolder',
-        LR_export_destinationPathPrefix = options.directory or '/output',
-        LR_export_useSubfolder = options.useSubfolder,
-        LR_export_destinationPathSuffix = options.subfolder,
-    }
-    state.provider.updateExportSettings(state.settings)
-    if options.unsafeSettings then state.settings.LR_export_destinationType = 'sourceFolder' end
-    local context = {
-        propertyTable = state.settings,
-        configureProgress = function() state.progressConfigured = true; return progress end,
-        renditions = function(_, args)
-            assert(state.progressConfigured)
-            assertEqual(args.stopIfCanceled, true)
-            local i = 0
-            return function()
-                i = i + 1
-                if i <= (options.originalPaths and #options.originalPaths or options.repeatCount or 1) then
-                    state.currentOriginal = options.originalPaths and options.originalPaths[i]
-                    return i, rendition
-                end
-            end
-        end,
-    }
-    state.run = function() state.provider.processRenderedPhotos({}, context) end
-    return state
-end
+local newHarness = assert(loadfile('tests/support/export_harness.lua'))()
 
 local function test(name, callback)
     callback()
@@ -182,15 +55,12 @@ test('preserves Unicode, spaces, and dots in the source stem', function()
 end)
 
 for _, case in ipairs {
-    { 'existing file', { collision = 'file' } },
-    { 'existing directory', { collision = 'directory' } },
     { 'missing folder', { missingDirectory = true } },
     { 'relative folder', { directory = 'relative' } },
     { 'missing original', { missingOriginal = true } },
     { 'unreadable original', { unreadable = true } },
     { 'missing catalog path', { noPath = true } },
     { 'relative catalog path', { original = 'DSCF1234.JPG' } },
-    { 'unsafe source name', { original = '/original/invalid:name.JPG' } },
     { 'metadata exception', { metadataException = true } },
     { 'render failure', { renderFailure = true } },
     { 'render exception', { renderException = true } },
@@ -225,12 +95,13 @@ for _, case in ipairs {
     end)
 end
 
-test('second rendition with the same stem fails rather than overwriting', function()
+test('second rendition with the same stem uses a collision suffix', function()
     local h = newHarness { repeatCount = 2 }
     h.run()
-    assertEqual(#h.copies, 1)
-    assertEqual(#h.errors, 1)
-    assert(h.messages[1][2]:find('保存済み：1', 1, true))
+    assertEqual(#h.copies, 2)
+    assertEqual(#h.errors, 0)
+    assertEqual(h.copies[2][2], '/output/test_DSCF1234_001.jpg')
+    assert(h.messages[1][2]:find('保存済み：2', 1, true))
 end)
 
 for _, case in ipairs { { 'canceled', { canceled = true } }, { 'skipped', { skipped = true } } } do
@@ -342,7 +213,6 @@ for _, case in ipairs {
     { 'subfolder creation fails', { createFailure = true } },
     { 'cancel during subfolder creation', { cancelDuringCreate = true } },
     { 'render fails before subfolder creation', { renderFailure = true } },
-    { 'subfolder output already exists', { extraFiles = { ['/output/exports'] = 'directory', ['/output/exports/test_DSCF1234.jpg'] = 'file' } } },
 } do
     test('handles ' .. case[1], function()
         case[2].useSubfolder = true
@@ -379,4 +249,20 @@ test('rejects unsupported destinations', function()
     assertEqual(#h.copies, 0)
 end)
 
+for _, kind in ipairs { 'file', 'directory' } do
+    test('renames around an existing ' .. kind, function()
+        local h = newHarness { collision = kind }; h.run()
+        assertEqual(#h.errors, 0); assertEqual(h.copies[1][2], '/output/test_DSCF1234_001.jpg')
+        assertEqual(h.files['/output/test_DSCF1234.jpg'], kind)
+    end)
+end
+test('sanitizes prohibited characters from the source stem', function()
+    local h = newHarness { original = '/original/invalid:name.JPG' }; h.run()
+    assertEqual(h.copies[1][2], '/output/test_invalid_name.jpg')
+end)
+test('renames around an existing subfolder output', function()
+    local h = newHarness { useSubfolder = true, subfolder = 'exports', extraFiles = {
+        ['/output/exports'] = 'directory', ['/output/exports/test_DSCF1234.jpg'] = 'file' } }
+    h.run(); assertEqual(h.copies[1][2], '/output/exports/test_DSCF1234_001.jpg')
+end)
 print(string.format('%d boundary tests passed; Lightroom manual integration remains required.', testCount))

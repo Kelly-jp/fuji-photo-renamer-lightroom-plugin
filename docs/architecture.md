@@ -8,7 +8,7 @@ KISS、YAGNI、DRY を優先し、小さな Lua モジュールと明示的な�
 ui/ExportDialog ───────────────> core（プレビュー）
 lightroom/ExportServiceProvider > core（命名・解決）
 lightroom/ExportServiceProvider > infrastructure（取得・保存）
-infrastructure ───────────────> SDK / ExifTool / OS
+infrastructure ───────────────> core / SDK / ExifTool / OS
 core ─────────────────────────> 純粋な Lua データのみ
 ```
 
@@ -122,3 +122,11 @@ FilenameSanitizer は拡張子付き候補から整形済み名前を返し、Co
 ui/ExportDialog に設定初期化、observable table の監視、画面要素、サンプルプレビューと検証表示を分離します。provider は絶対パス loadfile で UI と純 core を読み込み、startDialog / endDialog / sectionsForTopOfDialog を委譲します。UI に LrView.bind と純 core を明示的に渡します。新たな SDK namespace に core は依存しません。
 
 exportPresetFields は4個のスカラー設定だけを宣言し、プレビュー・監視状態は保存しません。標準の出力先 UI をそのまま使います。プレビューは即時の純 Lua 計算に限定し、非同期取得・ExifTool を呼びません。設定の検証だけを updateExportSettings でも実施します。processRenderedPhotos の保存処理と既存の元画像保護は変更しません。[Phase 8 記録](phase8-export-dialog.md)
+
+## Phase 9 の接続と保存方針
+
+ルート ExportServiceProvider は SDK 登録と依存接続に限定し、処理を lightroom/ExportServiceProvider へ委譲します。MetadataReader が SourceResolver / ExifTool / 純 core の MetadataResolver を接続します。UI の実写真プレビューと実書き出しはこの同じ取得処理を使い、命名・整形も同じ core を使用します。プレビューは選択写真、保存は rendition の元パスから読むため、対象の同一性を推測しません。
+
+FileSystem は標準保存先、必要なサブフォルダー、元画像群の保護、候補実在確認と SDK copy を担当します。確定名はセッションで予約します。core 内で Unicode 等価性を推測する代わりに、全候補を実保存先で検査します。コピー前の衝突は別名化、コピー後の失敗は部分コピーを隠さないため再試行せずエラーにする方針へ具体化しました。
+
+C2PA OFF の現段階では SDK のレンダリング結果から直接非上書きコピーします。作業コピー・削除対象の所有追跡は Phase 10 に残します。元 RAW / JPG / XMP や不明な部分ファイルの削除 API は追加しません。キャンセルは読取間・保存前で確認し、実行中の ExifTool は既存タイムアウト後に戻る場合があります。[詳細と制約](phase9-export-integration.md)

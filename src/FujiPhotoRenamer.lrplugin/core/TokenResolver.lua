@@ -7,7 +7,6 @@ local function failure(code, message, token)
     return nil, { code = code, message = message, token = token }
 end
 local function hasText(value) return type(value) == 'string' and value:find('%S') ~= nil end
-local function isFinite(value) return type(value) == 'number' and value == value and value < math.huge and value > -math.huge end
 local function separatorOnly(piece)
     return piece.kind == 'literal' and piece.value:match('^[_%- ]*$') ~= nil
 end
@@ -82,14 +81,6 @@ function Resolver.resolve(parsed, metadata, options)
     if parsed.tokens.Original then
         if not hasText(options.original) then return failure('MissingOriginal', '元画像の stem が必要です。', 'Original') end
         values.Original = options.original
-    end
-    if parsed.tokens.Sequence then
-        local sequence = options.sequence
-        if not isFinite(sequence) or sequence < 1 or sequence > 9007199254740991 or sequence ~= math.floor(sequence) then
-            return failure('InvalidSequence', '連番は 1 以上の安全な整数が必要です。', 'Sequence')
-        end
-        local text = string.format('%.0f', sequence)
-        values.Sequence = string.rep('0', math.max(0, 4 - #text)) .. text
     end
     local pieces = {}
     for i = 1, #parsed.segments do
