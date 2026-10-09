@@ -74,6 +74,10 @@ for _, choice in ipairs { 'ok', 'cancel' } do
             assert(messages[1][2]:find('CameraMaker 比較キー：FUJIFILM', 1, true))
             assert(messages[1][2]:find('LensMaker 比較キー：FUJIFILM', 1, true))
             assert(messages[1][2]:find('同一メーカー：はい', 1, true))
+            assert(messages[1][2]:find('ファイル名候補（Phase 6）', 1, true))
+            assert(messages[1][2]:find('省略 ON：20261008_123456_FUJIFILM_X-H2S_Synthetic Test Lens_phase2-sample_0001.jpg', 1, true))
+            assert(messages[1][2]:find('省略 OFF：20261008_123456_FUJIFILM_X-H2S_FUJIFILM_Synthetic Test Lens_phase2-sample_0001.jpg', 1, true))
+            assert(readFile(profilePath) == profileBefore and readFile(jpegPath) == jpegBefore)
         else
             assert(panels == 0 and #messages == 0)
         end

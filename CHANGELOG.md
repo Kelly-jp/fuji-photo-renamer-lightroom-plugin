@@ -4,6 +4,9 @@
 
 ### Added
 
+- Phase 6 の純 Lua TemplateParser / TokenResolver を追加。13 トークン、意味に基づくメーカー省略、欠落区切り整理と診断候補 ON/OFF に対応。
+- Phase 6 core 64 件と既存連携の候補表示・入力不変を検証。書き出し統合と Phase 7 以降は未着手。
+
 - Phase 5 の純 Lua ManufacturerNormalizer と比較表示を追加。既知の FUJIFILM 別名、TAMRON / SIGMA、未知メーカーのキー比較に対応。元 Metadata は不変。
 - Phase 5 core の 32 件と統合診断の比較表示を検証し、仕様・手動手順を追加。出力省略と Phase 6 は未実装。
 

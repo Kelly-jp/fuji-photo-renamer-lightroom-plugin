@@ -28,6 +28,10 @@ local function validDateTime(value)
     return zoneHour ~= nil and tonumber(zoneHour) <= 23 and tonumber(zoneMinute) <= 59
 end
 
+function Resolver.isValidCaptureDateTime(value)
+    return type(value) == 'string' and validDateTime(value)
+end
+
 local function invalidReason(field, value)
     local kind = type(value)
     if kind == 'string' and not value:find('%S') then return 'EmptyValue' end
