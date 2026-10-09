@@ -68,6 +68,27 @@ return function()
         lines[#lines + 1] = 'LensMaker 比較キー：' .. (lens and lens.key or '未取得')
         lines[#lines + 1] = '同一メーカー：' .. (same and 'はい' or '同一とは判定しません')
     end
+    local parser = loadModule('core/TemplateParser.lua')
+    local tokenResolver = loadModule('core/TokenResolver.lua', { normalizer = normalizer, metadataResolver = resolver })
+    local template = '{DateTime}_{CameraMaker}_{Camera}_{LensMaker}_{Lens}_{Original}_{Sequence}.{Extension}'
+    local parsed = assert(parser.parse(template))
+    lines[#lines + 1] = '\nファイル名候補（Phase 6）：保存・リネームは行いません。'
+    lines[#lines + 1] = 'テンプレート：' .. template
+    lines[#lines + 1] = '出力は JPEG を想定、Sequence は仮値 0001。禁止文字・衝突の処理は未適用です。'
+    for _, omit in ipairs { true, false } do
+        local preview, previewError = tokenResolver.resolve(parsed, result.metadata, {
+            original = pathUtils.removeExtension(pathUtils.leafName(photos[1])),
+            extension = 'jpg', sequence = 1, omitDuplicateManufacturer = omit,
+        })
+        local label = '同一メーカーのレンズメーカー省略 ' .. (omit and 'ON' or 'OFF') .. '：'
+        if preview then
+            lines[#lines + 1] = label .. preview.filename
+            lines[#lines + 1] = '空欄：' .. (#preview.missingTokens > 0 and table.concat(preview.missingTokens, ', ') or 'なし')
+            lines[#lines + 1] = '省略：' .. (#preview.omittedTokens > 0 and table.concat(preview.omittedTokens, ', ') or 'なし')
+        else
+            lines[#lines + 1] = label .. previewError.code .. ' / ' .. previewError.message
+        end
+    end
     for _, warning in ipairs(warnings) do lines[#lines + 1] = '警告：' .. warning end
     dialogs.message('Phase 4：項目単位の統合結果', table.concat(lines, '\n'), #warnings > 0 and 'warning' or 'info')
 end

@@ -68,3 +68,7 @@ core は SDK、ExifTool、I/O なしで単体テストできる。外部処理�
 ## Phase 5 の限定範囲
 
 ユーザー指示に基づきメーカー名の正規形と同一比較を実装しました。FUJIFILM の明示別名、TAMRON / SIGMA の大小文字、未知名の trim・ASCII 大小文字正規化に対応します。F-07 の出力省略・設定 UI は未実装で、Phase 6 以降へ残します。[Phase 5 記録](phase5-manufacturers.md)
+
+## Phase 6 の限定範囲
+
+F-06 の 13 トークンと F-07 の意味に基づく LensMaker 省略を純 core として実装しました。解析・展開エラー、欠落一覧・省略一覧を返し、既存統合診断に固定テンプレートの ON/OFF 候補を表示します。F-02 の設定入力、F-03 の書き出し画面プレビュー、F-09 の安全処理・衝突回避・最終保存は後続 Phase に残します。[Phase 6 記録](phase6-templates.md)
