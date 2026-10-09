@@ -37,3 +37,9 @@ FujiPhotoRenamer.lrplugin/
 ## リリース判定
 
 [技術検証 6](testing.md#技術検証項目) が通るまで自己完結した配布を対応済みとしません。クリーン環境で起動・読取・削除、非 ASCII / 空白を含む設置パス、実行権限、依存不足時のエラーを確認します。管理者権限や OS の保護設定を一律に無効化する手順は採用しません。対応 OS / Classic / SDK / ExifTool の実測バージョンを README とリリース情報へ記載します。
+
+## Phase 2 の開発用例外
+
+Phase 2 は明示指定した開発用 ExifTool で読取を検証します。今回の検証版は Homebrew の 13.55 です。これは同梱や自己完結配布の完成ではなく、配布要件は維持します。既定の同梱パスにツールがなければエラーにし、PATH へフォールバックしません。
+
+純 Lua JSON ライブラリ dkjson 2.11 のみをソース管理へ追加しました。25,009 bytes、MIT、Lua 5.1 対応を確認し、公式ハッシュ・取得 URL を `third_party/dependencies.json`、ライセンスを `THIRD_PARTY_NOTICES/dkjson-LICENSE.txt` に固定します。OS runner とこれらの通知は将来の配布に必要な構成要素です。ExifTool / Perl のペイロード、取得・ZIP スクリプトは Phase 12 まで追加しません。

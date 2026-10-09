@@ -1,0 +1,15 @@
+[
+  {
+    "SourceFile": "/fixtures/sample.RAF",
+    "ExifTool:ExifToolVersion": 13.55,
+    "ExifIFD:DateTimeOriginal": "2026:10:08 12:34:56",
+    "IFD0:Make": "FUJIFILM",
+    "IFD0:Model": "X-H2S",
+    "ExifIFD:LensMake": "FUJIFILM",
+    "ExifIFD:LensModel": "XF200mmF2 R LM OIS WR + 1.4x F2",
+    "FujiFilm:FilmMode": 0,
+    "FujiFilm:Saturation": 384,
+    "ExifIFD:ISO": 160,
+    "ExifIFD:FocalLength": 280
+  }
+]
