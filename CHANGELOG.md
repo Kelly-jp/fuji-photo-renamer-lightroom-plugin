@@ -4,6 +4,9 @@
 
 ### Added
 
+- Phase 3 の読み取り専用 MetadataSourceResolver と探索診断メニューを追加。3 モード、RAF / DNG、XMP、拡張子大小文字、曖昧性検出に対応。
+- Phase 3 の境界 43 件・macOS 合成配置 9 件のテストと検証記録を追加。Phase 4 以降は未着手。
+
 - Phase 2 の読み取り専用 ExifTool ラッパー、OS 別の期限付き runner、単体診断メニューを追加。
 - dkjson 2.11 を公式 SHA-256・ライセンス付きで固定し、合成フィクスチャと Phase 2 テスト・検証記録を追加。
 - ExifTool 13.55 で許諾済み X-H2S RAF の必要項目取得と SHA-256 不変を確認。Phase 2 は 83 件、Phase 1 の回帰は 66 件成功。
@@ -17,6 +20,8 @@
 - core / infrastructure / ui / lightroom と単体・結合テストのディレクトリを追加。本体コードは未実装。
 
 ### Changed
+
+- 新規 Phase3Diagnostic が SDK に認識されないエラーへ対処し、既存 Phase2Diagnostic を共通入口に変更。読取・探索処理は別ファイルを絶対パスで読み込む方式へ統一。
 
 - fphoto-renamer の取得ロジックを参考に、XMP の CRS LookName / CameraProfile から既知の FilmSim を解決。実 XMP の PROVIA 取得と RAW / XMP の SHA-256 不変を確認。未知名の誤認防止を含め Phase 2 テストを 83 件へ拡張。
 

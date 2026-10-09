@@ -25,10 +25,27 @@ function Adapter.install(pluginPath)
             isAbsolute = function(path) return path:sub(1, 1) == '/' or path:match('^%a:[/\\]') ~= nil end,
             child = function(parent, child) return parent .. '/' .. child end,
             extension = function(path) return path:match('%.([^./]*)$') or '' end,
+            parent = function(path)
+                if path == '/' then return nil end
+                local parent = path:match('^(.*)/[^/]+$')
+                return parent == '' and '/' or parent
+            end,
+            leafName = function(path) return path:match('[^/]+$') end,
+            removeExtension = function(path) return (path:gsub('%.[^.]*$', '')) end,
+            standardizePath = function(path) return path end,
             getStandardFilePath = function(key) assert(key == 'temp'); return '/tmp' end,
         },
         LrFileUtils = {
             exists = exists,
+            resolveAllAliases = function(path) return path end,
+            directoryEntries = function(path)
+                local pipe = assert(io.popen('/usr/bin/find ' .. quote(path) .. ' -mindepth 1 -maxdepth 1 -print0'))
+                local text = pipe:read('*a'); assert(pipe:close())
+                local entries = {}
+                for entry in text:gmatch('[^%z]+') do entries[#entries + 1] = entry end
+                local i = 0
+                return function() i = i + 1; return entries[i] end
+            end,
             isReadable = function(path)
                 local handle = io.open(path, 'rb')
                 if not handle then return false end

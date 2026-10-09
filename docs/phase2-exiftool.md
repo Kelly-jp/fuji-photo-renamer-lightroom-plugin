@@ -96,7 +96,7 @@ lua tests/integration/exiftool_read_test.lua /absolute/path/to/exiftool /absolut
 ## Lightroom Classic での手動確認
 
 1. プラグインマネージャーでプラグインを再読み込みする。表示名「Fuji Photo Renamer — 開発検証版」、バージョン `0.1.5.6`、読み込み元がリポジトリの `src/FujiPhotoRenamer.lrplugin/` であることを確認する。
-2. 「ファイル → プラグインエクストラ」（または「ライブラリ → プラグインエクストラ」）内の「Phase 2：ExifTool のメタデータ取得を検証…」を選ぶ。
+2. 「ファイル → プラグインエクストラ」（または「ライブラリ → プラグインエクストラ」）内の「メタデータ取得 / 入力ファイル探索を検証…」を開き、「ExifTool でメタデータ取得」を選ぶ。
 3. 検証用 ExifTool 実行ファイルを選ぶ。今回の環境なら `/opt/homebrew/bin/exiftool`。選択画面の ⌘⇧G で親フォルダーを指定できる。
 4. 検証用 RAW / JPG / XMP を 1 ファイル選び、表示された 8 項目、欠落・警告を確認する。
 5. 不正な実行ファイル、破損入力、取消時に誤って成功表示されないことを確認する。

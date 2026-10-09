@@ -99,3 +99,13 @@ JSON・タグ変換の単体検証に加え、実プロセスの異常終了・�
 ### Phase 2 の Lightroom 内での確認報告
 
 2026-10-09、ユーザーが修正対象と同じ XMP を診断メニューで選び、FilmSim の取得成功を報告しました。macOS の診断起動と XMP FilmSim 表示の確認結果として記録します。SDK adapter による自動テストとは区別し、Windows や異常系の実機結果へ一般化しません。[手動確認の詳細](phase2-exiftool.md#macos-の手動確認報告2026-10-09)
+
+## Phase 3 の検証
+
+SDK 境界テスト `metadata_source_resolver_test.lua` は 43 件、macOS の合成配置テスト `metadata_source_resolver_native_test.lua` は 9 件成功しました。3 モード、RAF / DNG、拡張子大小文字、nil、曖昧性、読み取り失敗、ルート、Windows パス文字列、日本語・Unicode 差を確認します。ネイティブテストは入力のバイト列不変も確認します。
+
+Phase 1 の回帰 66 件、Phase 2 の実 ExifTool + 合成入力の回帰 81 件も成功しました（個人 RAF / XMP の任意ケースは未実行）。SDK ダブルによる検証を Lightroom 実機成功と混同しません。手動ゲートと SDK 列挙の仕様は [Phase 3 記録](phase3-metadata-sources.md) を参照してください。
+
+### Phase 3 の Lightroom 内での確認報告
+
+2026-10-09、ユーザーから探索診断が問題なく動作するとの報告を受けました。macOS の基本経路の確認として扱い、各モードのパス・異常系・Windows の個別結果は未確認のままです。[手動確認の詳細](phase3-metadata-sources.md#macos-の手動確認報告2026-10-09)

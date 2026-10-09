@@ -33,10 +33,12 @@ test('registers a loadable diagnostic command in both File and Library menus', f
     local info = dofile('src/FujiPhotoRenamer.lrplugin/Info.lua')
     assert(info.LrExportServiceProvider)
     for _, items in ipairs { info.LrExportMenuItems, info.LrLibraryMenuItems } do
-        equal(#items, 1)
-        equal(items[1].file, 'Phase2Diagnostic.lua')
-        assert(loadfile(root .. '/src/FujiPhotoRenamer.lrplugin/' .. items[1].file))
-        equal(items[1].enabledWhen, nil)
+        local found = false
+        for _, item in ipairs(items) do
+            assert(loadfile(root .. '/src/FujiPhotoRenamer.lrplugin/' .. item.file))
+            if item.file == 'Phase2Diagnostic.lua' then found = true; equal(item.enabledWhen, nil) end
+        end
+        assert(found, 'Phase 2 diagnostic menu missing')
     end
     equal(info.LrExportMenuItems[1].file, info.LrLibraryMenuItems[1].file)
 end)
@@ -63,6 +65,7 @@ test('starts the diagnostic even when SDK require cannot find newly added files'
         LrFileUtils = sdk.LrFileUtils, LrPathUtils = sdk.LrPathUtils,
         LrTasks = { pcall = pcall, startAsyncTask = function(callback) callback() end },
         LrDialogs = {
+            confirm = function() return 'other' end,
             runOpenPanel = function() calls.panel = true; return nil end,
             message = function(title, message) error(title .. ': ' .. tostring(message)) end,
         },

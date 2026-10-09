@@ -71,10 +71,16 @@ exiftool -j -G1 -s sample.jpg
 
 ExifTool 13.55 で許諾済み X-H2S RAF の Make / Model / LensMake / LensModel / FilmMode / Saturation を実取得し、グループ付きタグを確認しました。LensMake は FUJIFILM として取得でき、推定は不要でした。FilmMode = 0 は PROVIA として扱い、0 を欠落にしません。白黒・ACROS は確認済み Saturation コードを先に判定します。全機種・全レンズへ一般化しません。
 
-合成 JPEG / XMP でもタググループを確認しています。ラッパーの詳細な対応表は [Phase 2 記録](phase2-exiftool.md#確認したタグ対応) を参照してください。日時の暦検証・トークン書式、Composite LensID による推測、入力探索、複数入力の項目別マージは未実装です。XMP FilmSim は、実ファイルで確認した CRS の既知の LookName / CameraProfile に限って対応しています。採用する日付の有効性は後続の項目解決・トークン処理で検証するため、Phase 2 の文字列取得だけを妥当性確認済みとはみなしません。
+合成 JPEG / XMP でもタググループを確認しています。ラッパーの詳細な対応表は [Phase 2 記録](phase2-exiftool.md#確認したタグ対応) を参照してください。日時の暦検証・トークン書式、Composite LensID による推測、Phase 2 時点では入力探索・項目別マージは未実装でした。入力探索は Phase 3 に追加し、項目別マージは未実装です。XMP FilmSim は、実ファイルで確認した CRS の既知の LookName / CameraProfile に限って対応しています。採用する日付の有効性は後続の項目解決・トークン処理で検証するため、Phase 2 の文字列取得だけを妥当性確認済みとはみなしません。
 
 ### XMP の編集プロファイル
 
 2026-10-09 の修正で、Rust 版 fphoto-renamer の取得ロジックを参考に `XMP-crs:LookName`、`XMP-crs:CameraProfile`、`XMP-crs:CameraProfilesProfileName` を固定取得対象に追加しました。許諾された XMP の Camera PROVIA/Standard を PROVIA と解決しています。これはユーザーが現像で選択した編集プロファイルの解釈です。撮影時 MakerNotes とは採用元を区別します。
 
 既知名だけを対応させ、未知のカスタム名・Adobe Color 等は FilmSim として採用しません。XMP 内は Look 名を先に採用し、RAW / JPG は撮影時コードを優先します。異なるファイルの項目別マージは引き続き後続 Phase の責務です。[詳細な修正根拠](phase2-exiftool.md#xmp-filmsim-の修正2026-10-09)
+
+## Phase 3 の探索実装
+
+[Phase 3 記録](phase3-metadata-sources.md) のとおり、3 モードの RAW 探索、同階層の JPEG 探索、RAW / 元画像に隣接する XMP 探索を実装しました。元 RAW 入力は直接採用し、JPG 起点の階層設定を適用しません。ExifTool からは独立し、入力メタデータの読み取り・マージには進みません。
+
+stem の大小文字差は ASCII の大小文字だけ違う候補を明示的な曖昧エラーとして扱います。Unicode 正規化差は SDK での安全な同一性判定が未確認のため採用しません。同一性の重複排除は SDK で解決した正規パスの一致に限定し、ハードリンクを推定で同一としません。これらは初期の「stem 完全一致・推測しない」方針を具体化した制約です。

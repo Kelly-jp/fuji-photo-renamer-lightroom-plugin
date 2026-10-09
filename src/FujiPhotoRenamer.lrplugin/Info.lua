@@ -1,6 +1,6 @@
 local diagnosticMenuItems = {
     {
-        title = 'Phase 2：ExifTool のメタデータ取得を検証…',
+        title = 'メタデータ取得 / 入力ファイル探索を検証…',
         file = 'Phase2Diagnostic.lua',
     },
 }
@@ -16,5 +16,5 @@ return {
     },
     LrExportMenuItems = diagnosticMenuItems,
     LrLibraryMenuItems = diagnosticMenuItems,
-    VERSION = { major = 0, minor = 1, revision = 5, build = 6 },
+    VERSION = { major = 0, minor = 2, revision = 1, build = 8 },
 }
