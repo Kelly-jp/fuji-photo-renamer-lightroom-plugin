@@ -119,3 +119,11 @@ macOS の合成データ連携 `metadata_resolver_native_test.lua` は 6 件成�
 ### Phase 4 の Lightroom 内での確認報告
 
 2026-10-09、ユーザーが DNG の FilmSim を変更して書き出したケースを再確認し、変更後の FilmSim を取得できたと報告しました。macOS の実ケースの解消報告として扱い、具体的なタグ・前後値・他の異常系の証拠とは区別します。[手動確認の詳細](phase4-metadata-merge.md#dng-現像変更ケースの手動確認2026-10-09)
+
+## Phase 5 の検証
+
+`tests/core/manufacturer_normalizer_test.lua` は純 Lua 環境で 32 件成功。既知の表記揺れ、異メーカー、未知メーカー、欠落・不正型、制御文字、Unicode の非推定、元データ不変を確認しました。統合診断の既存連携 6 件にはキー表示・同一判定の確認を追加し成功しています。回帰は MetadataResolver 59、Phase 1 66、Phase 2 合成入力 87、Phase 3 43 + 9 件が成功。[仕様と手動ゲート](phase5-manufacturers.md)
+
+### Phase 5 の手動確認報告
+
+2026-10-09、ユーザーが既存の検証画像でメーカー名を取得できたことを確認しました。表記揺れ・異メーカーに適した実画像がなく、比較判定の個別手動ケースは未確認です。純 core の合成入力テストと区別して記録します。[詳細](phase5-manufacturers.md#手動確認報告2026-10-09)

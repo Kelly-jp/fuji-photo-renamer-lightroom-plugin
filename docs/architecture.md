@@ -102,3 +102,7 @@ Phase 1 の書き出しフローは変更せず、探索と読取、テンプレ
 core の MetadataResolver は SDK・ExifTool・I/O・時計を持たない純粋なテーブル処理です。Phase4Diagnostic のみに探索・読取・統合の検証用手順を組み合わせます。core へは metadata / opaque な採用元だけを渡し、生タグや読取警告の扱いは adapter に残します。
 
 既存共通入口でメタデータ検証方法を選択し、絶対パスで Phase4Diagnostic を読み込みます。これは単体成立性の確認用であり、ExportServiceProvider への全体統合は Phase 9 に残します。[Phase 4 記録](phase4-metadata-merge.md)
+
+## Phase 5 の境界
+
+ManufacturerNormalizer は普通のメーカー文字列だけを受け取り、新しい比較キー・表示名を返します。SDK / ExifTool / I/O / MetadataResolver に依存せず、元の Metadata を変更しません。比較表示だけを既存の統合診断へ追加し、出力の省略は TokenResolver の Phase 6 へ残します。[Phase 5 記録](phase5-manufacturers.md)

@@ -32,7 +32,7 @@
 
 比較キーは前後空白の除去、ASCII の大小文字統一、空白の連続整理、明示的な既知別名表で生成します。初期の例として `FUJIFILM`、`FUJI FILM`、`FUJIFILM CORPORATION` を `FUJIFILM` として扱います。別名表はテストを伴って追加し、任意の会社名接尾辞削除や部分一致は行いません。Unicode 表記差の追加対応は実データで必要性を確認します。
 
-カメラ・レンズ両メーカーが存在し、比較キーが一致し、テンプレートに両方のトークンがある場合だけ、重複省略 ON で LensMaker の展開を空にします。CameraMaker の位置だけを残します。LensMaker しか指定されていない場合は省略しません。未知メーカーも空文字同士も同一メーカーと推定しません。
+カメラ・レンズ両メーカーが存在し、比較キーが一致し、テンプレートに両方のトークンがある場合だけ、重複省略 ON で LensMaker の展開を空にします。CameraMaker の位置だけを残します。LensMaker しか指定されていない場合は省略しません。未知メーカーも非空の正規化キーが一致すれば同一として比較できます（Phase 5 のユーザー指示に合わせた更新）。空文字・欠落同士は同一メーカーとみなしません。
 
 ```text
 テンプレート: {CameraMaker}_{Camera}_{LensMaker}_{Lens}
@@ -49,3 +49,9 @@ OFF: FUJIFILM_X-H2S_FUJIFILM_XF100-400mm
 FilenameSanitizer はメタデータ由来の禁止文字 `< > : " / \ | ? *` と制御文字を `_` に置換し、末尾の空白・ドットを除去します。`.`、`..`、Windows 予約名（拡張子付きの CON / PRN / AUX / NUL / COM1〜9 / LPT1〜9 を含む）は拒否します。OS の成分長・フルパス長は Platform で確認し、超過時は切り詰めずエラーにします。Unicode の単位と SDK の長さ制限は実機検証が必要です。
 
 衝突時は `name.jpg` → `name_001.jpg` → `name_002.jpg` と候補を作ります。処理内で確定済みの名前も衝突として扱い、OS の大小文字・Unicode 等価性も考慮します。FileSystem は保存時に再確認し、既存ファイルを置換しない確定方法を使います。安全な方法の検証完了までは非上書きを保証済みとしません。
+
+## Phase 5 の実装状態
+
+メーカーの比較キー・表示名を作る ManufacturerNormalizer は実装済みです。既知の FUJIFILM 別名と TAMRON / SIGMA、未知の非空文字列の比較に対応します。元 Metadata は不変です。[正規化の仕様](phase5-manufacturers.md)
+
+TokenResolver 内でのメーカー省略、ON/OFF UI、テンプレート展開は Phase 6 以降に残します。

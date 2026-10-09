@@ -4,6 +4,9 @@
 
 ### Added
 
+- Phase 5 の純 Lua ManufacturerNormalizer と比較表示を追加。既知の FUJIFILM 別名、TAMRON / SIGMA、未知メーカーのキー比較に対応。元 Metadata は不変。
+- Phase 5 core の 32 件と統合診断の比較表示を検証し、仕様・手動手順を追加。出力省略と Phase 6 は未実装。
+
 - Phase 4 の純 Lua MetadataResolver と統合診断を追加。XMP → RAW → JPG の項目別採用、型・数値・日時検証、採用元・欠落・不採用理由を記録。
 - Phase 4 の core 59 件・macOS 合成連携 6 件のテストと仕様文書を追加。Phase 5 以降は未着手。
 

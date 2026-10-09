@@ -12,6 +12,7 @@ return function()
     local scanner = loadModule('infrastructure/MetadataSourceResolver.lua', context)
     local reader = loadModule('ExifToolLoader.lua', context)
     local resolver = loadModule('core/MetadataResolver.lua')
+    local normalizer = loadModule('core/ManufacturerNormalizer.lua')
     local executables = dialogs.runOpenPanel {
         title = 'Phase 4：検証用 ExifTool 実行ファイルを選択',
         canChooseFiles = true, canChooseDirectories = false, allowsMultipleSelection = false,
@@ -55,6 +56,17 @@ return function()
     end
     for _, rejected in ipairs(result.rejectedValues) do
         lines[#lines + 1] = '不採用：' .. rejected.sourceKind .. '.' .. rejected.field .. ' / ' .. rejected.reason
+    end
+    local same, compareError = normalizer.sameManufacturer(result.metadata.cameraMaker, result.metadata.lensMaker)
+    lines[#lines + 1] = '\nメーカー比較（Phase 5）：元のメタデータは変更しません。'
+    if compareError then
+        warnings[#warnings + 1] = compareError.message
+    else
+        local camera = normalizer.normalize(result.metadata.cameraMaker)
+        local lens = normalizer.normalize(result.metadata.lensMaker)
+        lines[#lines + 1] = 'CameraMaker 比較キー：' .. (camera and camera.key or '未取得')
+        lines[#lines + 1] = 'LensMaker 比較キー：' .. (lens and lens.key or '未取得')
+        lines[#lines + 1] = '同一メーカー：' .. (same and 'はい' or '同一とは判定しません')
     end
     for _, warning in ipairs(warnings) do lines[#lines + 1] = '警告：' .. warning end
     dialogs.message('Phase 4：項目単位の統合結果', table.concat(lines, '\n'), #warnings > 0 and 'warning' or 'info')
