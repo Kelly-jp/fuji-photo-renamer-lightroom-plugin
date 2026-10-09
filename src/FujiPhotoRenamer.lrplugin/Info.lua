@@ -11,10 +11,10 @@ return {
     LrToolkitIdentifier = 'jp.kelly.fuji-photo-renamer',
     LrPluginName = 'Fuji Photo Renamer — 開発検証版',
     LrExportServiceProvider = {
-        title = 'Fuji Photo Renamer — Phase 1',
+        title = 'Fuji Photo Renamer — 開発検証版',
         file = 'ExportServiceProvider.lua',
     },
     LrExportMenuItems = diagnosticMenuItems,
     LrLibraryMenuItems = diagnosticMenuItems,
-    VERSION = { major = 0, minor = 6, revision = 0, build = 13 },
+    VERSION = { major = 0, minor = 7, revision = 2, build = 16 },
 }

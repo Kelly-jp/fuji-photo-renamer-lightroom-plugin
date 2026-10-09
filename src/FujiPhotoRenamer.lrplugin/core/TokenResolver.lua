@@ -43,7 +43,7 @@ function Resolver.resolve(parsed, metadata, options)
     if type(metadata) ~= 'table' or type(options) ~= 'table' then return failure('InvalidInput', 'metadata と出力情報が必要です。') end
     local extension = options.extension
     if type(extension) ~= 'string' or not extension:match('^[A-Za-z0-9]+$') then
-        return failure('InvalidExtension', '実際の出力拡張子をドットなしで指定してください。', 'Extension')
+        return failure('InvalidExtension', '実際の出力拡張子をドットなしで指定してください。')
     end
     local omit = options.omitDuplicateManufacturer
     if omit == nil then omit = true end
@@ -91,27 +91,11 @@ function Resolver.resolve(parsed, metadata, options)
         local text = string.format('%.0f', sequence)
         values.Sequence = string.rep('0', math.max(0, 4 - #text)) .. text
     end
-    for _, token in ipairs { 'ISO', 'FocalLength' } do
-        if parsed.tokens[token] then
-            local value = metadata[token == 'ISO' and 'iso' or 'focalLength']
-            if value == nil then values[token] = ''
-            elseif not isFinite(value) or value <= 0 or token == 'ISO' and value ~= math.floor(value) then
-                return failure('InvalidTokenValue', '正の有効な数値が必要です。', token)
-            elseif token == 'ISO' then values[token] = string.format('%.0f', value)
-            else
-                local text = string.format('%.10f', value):gsub(',', '.'):gsub('0+$', ''):gsub('%.$', '')
-                if text == '0' then return failure('InvalidTokenValue', '焦点距離が表示精度より小さすぎます。', token) end
-                values[token] = text .. 'mm'
-            end
-        end
-    end
     local pieces = {}
-    local limit = #parsed.segments - (parsed.hasExtension and 1 or 0)
-    for i = 1, limit do
+    for i = 1, #parsed.segments do
         local segment = parsed.segments[i]
         if segment.kind == 'literal' then
             local literal = segment.value
-            if parsed.hasExtension and i == limit then literal = literal:sub(1, -2) end
             pieces[#pieces + 1] = { kind = 'literal', value = literal }
         else
             local value = values[segment.name]

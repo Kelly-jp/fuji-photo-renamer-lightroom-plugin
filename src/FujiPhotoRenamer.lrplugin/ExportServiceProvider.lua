@@ -2,8 +2,24 @@ local LrDialogs = import 'LrDialogs'
 local LrFileUtils = import 'LrFileUtils'
 local LrPathUtils = import 'LrPathUtils'
 local LrTasks = import 'LrTasks'
+local LrView = import 'LrView'
+
+local function loadModule(relativePath, dependencies)
+    local path = LrPathUtils.child(_PLUGIN.path, relativePath)
+    local chunk, message = loadfile(path)
+    if not chunk then error('読み込みに失敗しました：' .. path .. '\n' .. tostring(message)) end
+    return chunk(dependencies)
+end
+local metadataResolver = loadModule('core/MetadataResolver.lua')
+local normalizer = loadModule('core/ManufacturerNormalizer.lua')
+local exportDialog = loadModule('ui/ExportDialog.lua', {
+    bind = LrView.bind, parser = loadModule('core/TemplateParser.lua'),
+    tokens = loadModule('core/TokenResolver.lua', { normalizer = normalizer, metadataResolver = metadataResolver }),
+    sanitizer = loadModule('core/FilenameSanitizer.lua'),
+})
 
 local provider = {
+    exportPresetFields = exportDialog.exportPresetFields,
     showSections = { 'exportLocation', 'fileSettings', 'imageSettings', 'outputSharpening', 'metadata' },
     allowFileFormats = { 'JPEG' },
     canExportVideo = false,
@@ -23,32 +39,20 @@ function provider.startDialog(propertyTable)
         propertyTable.LR_export_destinationType = 'specificFolder'
         propertyTable.LR_export_destinationPathPrefix = propertyTable.phase1OutputDirectory or ''
     end
+    exportDialog.startDialog(propertyTable)
+end
+
+function provider.endDialog(propertyTable)
+    exportDialog.endDialog(propertyTable)
 end
 
 function provider.sectionsForTopOfDialog(f, propertyTable)
-    return {
-        {
-            title = 'Phase 1：ファイル名と保存動作',
-            f:static_text {
-                title = '下の「書き出し場所」で保存先とサブフォルダーを指定してください。',
-                width_in_chars = 60,
-                height_in_lines = -1,
-            },
-            f:static_text {
-                title = 'test_<元ファイル名>.jpg を保存します。同名ファイルは「既存のファイル」の設定にかかわらず上書きしません。',
-                width_in_chars = 60,
-                height_in_lines = -1,
-            },
-            f:static_text {
-                title = 'この検証版では「このカタログに追加」とスタックへの追加は適用しません。',
-                width_in_chars = 60,
-                height_in_lines = -1,
-            },
-        },
-    }
+    return exportDialog.sections(f, propertyTable)
 end
 
 function provider.updateExportSettings(exportSettings)
+    local reason = exportDialog.cannotExportBecause(exportSettings)
+    if reason then error(reason) end
     -- Keep the user's final destination before redirecting only the SDK's render output.
     exportSettings.phase1Destination = {
         kind = exportSettings.LR_export_destinationType,

@@ -72,7 +72,7 @@ return function()
     local tokenResolver = loadModule('core/TokenResolver.lua', { normalizer = normalizer, metadataResolver = resolver })
     local sanitizer = loadModule('core/FilenameSanitizer.lua')
     local collisions = loadModule('core/CollisionResolver.lua', { sanitizer = sanitizer })
-    local template = '{DateTime}_{CameraMaker}_{Camera}_{LensMaker}_{Lens}_{Original}_{Sequence}.{Extension}'
+    local template = '{DateTime}_{CameraMaker}_{Camera}_{LensMaker}_{Lens}_{Original}_{Sequence}'
     local parsed = assert(parser.parse(template))
     lines[#lines + 1] = '\nファイル名候補（Phase 6）：保存・リネームは行いません。'
     lines[#lines + 1] = 'テンプレート：' .. template

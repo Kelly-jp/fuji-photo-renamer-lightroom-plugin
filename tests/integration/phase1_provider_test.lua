@@ -81,6 +81,7 @@ local function newHarness(options)
         LrView = { bind = function(key) return key end },
     }
     local environment = setmetatable({
+        _PLUGIN = { path = pluginDirectory:gsub('/$', '') },
         import = function(name) return assert(namespaces[name], 'Unexpected SDK namespace: ' .. name) end,
     }, { __index = _G })
     local loader = assert(loadfile(pluginDirectory .. 'ExportServiceProvider.lua'))
@@ -245,10 +246,12 @@ end
 test('migrates the previous destination into Lightroom settings', function()
     local h = newHarness()
     local settings = { phase1OutputDirectory = '/chosen', LR_export_destinationType = 'tempFolder' }
+    settings.addObserver = function() end; settings.removeObserver = function() end
     h.provider.startDialog(settings)
     assertEqual(settings.LR_export_destinationType, 'specificFolder')
     assertEqual(settings.LR_export_destinationPathPrefix, '/chosen')
     local sourceSettings = { LR_export_destinationType = 'sourceFolder', LR_export_useSubfolder = true }
+    sourceSettings.addObserver = function() end; sourceSettings.removeObserver = function() end
     h.provider.startDialog(sourceSettings)
     assertEqual(sourceSettings.LR_export_destinationType, 'sourceFolder')
     assertEqual(sourceSettings.LR_export_useSubfolder, true)
@@ -263,6 +266,7 @@ end)
 
 test('restores the selected location if the dialog receives the temporary session settings', function()
     local h = newHarness { destinationType = 'sourceFolder', useSubfolder = true, subfolder = 'exports' }
+    h.settings.addObserver = function() end; h.settings.removeObserver = function() end
     h.provider.startDialog(h.settings)
     assertEqual(h.settings.LR_export_destinationType, 'sourceFolder')
     assertEqual(h.settings.LR_export_useSubfolder, true)

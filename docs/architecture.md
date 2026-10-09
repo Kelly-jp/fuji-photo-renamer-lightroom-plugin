@@ -116,3 +116,9 @@ TemplateParser は文字列を解析し、TokenResolver は解析結果・内部
 ## Phase 7 の境界
 
 FilenameSanitizer は拡張子付き候補から整形済み名前を返し、CollisionResolver は整形済み名と既存名・予約名配列から次の候補を返します。CollisionResolver へ純 core の Sanitizer を渡して候補の長さを再検証します。比較キー関数は OS 境界が用意する純粋な処理です。Unicode の同一性・OS の長さ制限を core 内で推測しません。探索・予約更新・確定保存は adapter / infrastructure の責務として残します。既存診断だけに仮想例を追加し、書き出しフローは変えません。[Phase 7 記録](phase7-filename-safety.md)
+
+## Phase 8 の境界
+
+ui/ExportDialog に設定初期化、observable table の監視、画面要素、サンプルプレビューと検証表示を分離します。provider は絶対パス loadfile で UI と純 core を読み込み、startDialog / endDialog / sectionsForTopOfDialog を委譲します。UI に LrView.bind と純 core を明示的に渡します。新たな SDK namespace に core は依存しません。
+
+exportPresetFields は4個のスカラー設定だけを宣言し、プレビュー・監視状態は保存しません。標準の出力先 UI をそのまま使います。プレビューは即時の純 Lua 計算に限定し、非同期取得・ExifTool を呼びません。設定の検証だけを updateExportSettings でも実施します。processRenderedPhotos の保存処理と既存の元画像保護は変更しません。[Phase 8 記録](phase8-export-dialog.md)
