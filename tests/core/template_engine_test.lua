@@ -31,11 +31,11 @@ end
 
 for token, expected in pairs { Date = '20261009', Time = '123456', DateTime = '20261009_123456',
     Original = 'DSCF1234', CameraMaker = 'FUJIFILM', Camera = 'X-H2S', LensMaker = 'FUJIFILM',
-    Lens = 'XF100-400mm', FilmSim = 'PROVIA', ISO = '800', FocalLength = '100mm', Sequence = '0001' } do
+    Lens = 'XF100-400mm', FilmSim = 'PROVIA', Sequence = '0001' } do
     test('expands ' .. token, function() equal(render('{' .. token .. '}').filename, expected .. '.jpg') end)
 end
-test('uses the actual extension once at the explicit ending', function()
-    equal(render('{Original}.{Extension}', nil, { extension = 'JPEG' }).filename, 'DSCF1234.jpeg')
+test('always appends the actual extension', function()
+    equal(render('{Original}', nil, { extension = 'JPEG' }).filename, 'DSCF1234.jpeg')
 end)
 test('preserves escaped braces', function()
     equal(render('{{{Original}}}').filename, '{DSCF1234}.jpg')
@@ -45,8 +45,8 @@ for _, case in ipairs {
     { '', 'InvalidTemplate' }, { 'a/b', 'InvalidTemplate' }, { 'a\\b', 'InvalidTemplate' }, { 'a\0b', 'InvalidTemplate' },
     { '{Original', 'InvalidSyntax' }, { 'Original}', 'InvalidSyntax' }, { '{a{Original}', 'InvalidSyntax' },
     { '{Unknown}', 'UnknownToken' }, { '{date}', 'UnknownToken' }, { '{Date:YYYY}', 'UnknownToken' },
-    { '{Extension}', 'InvalidExtension' }, { '{Original}{Extension}', 'InvalidExtension' },
-    { '{Original}.{Extension}_tail', 'InvalidExtension' }, { '{Original}.{Extension}.{Extension}', 'InvalidExtension' },
+    { '{Extension}', 'UnknownToken' }, { '{Original}{Extension}', 'UnknownToken' },
+    { '{Original}.{Extension}_tail', 'UnknownToken' }, { '{Original}.{Extension}.{Extension}', 'UnknownToken' },
 } do
     test('rejects parser input ' .. case[1]:gsub('%c', '?'), function()
         local result, err = parser.parse(case[1]); equal(result, nil); equal(err.code, case[2])
@@ -79,7 +79,7 @@ end)
 for _, case in ipairs {
     { '{Camera}_{Lens}_{Original}', 'X-H2S_DSCF1234.jpg' },
     { '{Lens}_{Camera}', 'X-H2S.jpg' }, { '{Camera}_{Lens}', 'X-H2S.jpg' },
-    { '{Camera}_{Lens}.{Extension}', 'X-H2S.jpg' },
+    { '{Camera}_{Lens}_', 'X-H2S.jpg' },
     { '{Camera} - {Lens} _ {Original}', 'X-H2S DSCF1234.jpg' },
     { '__prefix__{Lens}__{Camera}__', '__prefix_X-H2S__.jpg' },
     { '{Camera}__keep__{Original}', 'X-H2S__keep__DSCF1234.jpg' },
@@ -95,16 +95,15 @@ test('cleans a whole run of missing tokens', function()
     equal(result.filename, 'FUJIFILM_DSCF1234.jpg'); equal(#result.missingTokens, 3)
 end)
 test('preserves source punctuation and parsed AST across calls', function()
-    local parsed = assert(parser.parse('{CameraMaker}_{LensMaker}_{Original}.{Extension}'))
+    local parsed = assert(parser.parse('{CameraMaker}_{LensMaker}_{Original}'))
     local data = metadata(); local opts = options { original = 'IMG__1234_' }
     equal(assert(resolver.resolve(parsed, data, opts)).filename, 'FUJIFILM_IMG__1234_.jpg')
     opts.omitDuplicateManufacturer = false
     equal(assert(resolver.resolve(parsed, data, opts)).filename, 'FUJIFILM_FUJIFILM_IMG__1234_.jpg')
     equal(data.lensMaker, 'FUJIFILM Corporation'); equal(parsed.segments[2].value, '_')
 end)
-test('formats fractional focal length and longer sequences', function()
-    local data = metadata(); data.focalLength = 23.5
-    equal(render('{FocalLength}_{Sequence}', data, { sequence = 10000 }).filename, '23.5mm_10000.jpg')
+test('formats longer sequences', function()
+    equal(render('{Sequence}', nil, { sequence = 10000 }).filename, '10000.jpg')
 end)
 test('does not convert timestamp offsets or use fractional seconds', function()
     local data = metadata(); data.captureDateTime = '2026-10-09T12:34:56.999+09:00'
@@ -115,8 +114,7 @@ test('does not require dates when no date token is used', function()
 end)
 for _, case in ipairs {
     { '{Date}', {}, {}, 'MissingDateTime' }, { '{Time}', { captureDateTime = '2026:02:29 12:00:00' }, {}, 'MissingDateTime' },
-    { '{Lens}', {}, {}, 'EmptyFilename' }, { '{Lens}.{Extension}', {}, {}, 'EmptyFilename' },
-    { '{ISO}', { iso = 0 }, {}, 'InvalidTokenValue' }, { '{FocalLength}', { focalLength = math.huge }, {}, 'InvalidTokenValue' },
+    { '{Lens}', {}, {}, 'EmptyFilename' }, { '{Lens}_{Lens}', {}, {}, 'EmptyFilename' },
     { '{Camera}', { camera = false }, {}, 'InvalidTokenValue' },
     { '{Sequence}', {}, { sequence = 0 }, 'InvalidSequence' }, { '{Sequence}', {}, { sequence = 1.5 }, 'InvalidSequence' },
     { '{Original}', {}, { original = '' }, 'MissingOriginal' },
@@ -128,9 +126,9 @@ for _, case in ipairs {
         equal(result, nil); equal(err.code, case[4])
     end)
 end
-test('treats whitespace text and missing numeric fields as empty', function()
-    local result = render('{Camera}_{Lens}_{FilmSim}_{ISO}_{FocalLength}_{Original}', { camera = '  ', lens = '', filmSim = '\t' })
-    equal(result.filename, 'DSCF1234.jpg'); equal(#result.missingTokens, 5)
+test('treats whitespace text fields as empty', function()
+    local result = render('{Camera}_{Lens}_{FilmSim}_{Original}', { camera = '  ', lens = '', filmSim = '\t' })
+    equal(result.filename, 'DSCF1234.jpg'); equal(#result.missingTokens, 3)
 end)
 test('does not infer a missing manufacturer from the other one', function()
     local result = render('{CameraMaker}_{LensMaker}_{Original}', { lensMaker = 'TAMRON' })
@@ -141,15 +139,15 @@ test('suppresses every LensMaker occurrence without removing literal manufacture
     local result = render('FUJIFILM_{LensMaker}_{CameraMaker}_{LensMaker}_{Original}')
     equal(result.filename, 'FUJIFILM_FUJIFILM_DSCF1234.jpg'); equal(result.omittedTokens[1], 'LensMaker')
 end)
-test('rejects invalid capture dates and unrepresentable focal lengths', function()
+test('rejects invalid capture dates', function()
     local result, err = resolver.resolve(assert(parser.parse('{DateTime}')), { captureDateTime = '2026:10:09' }, options())
     equal(result, nil); equal(err.code, 'MissingDateTime')
-    result, err = resolver.resolve(assert(parser.parse('{FocalLength}')), { focalLength = 1e-12 }, options())
-    equal(result, nil); equal(err.code, 'InvalidTokenValue')
+
 end)
-test('rounds focal length deterministically without modifying metadata', function()
-    local data = metadata(); data.focalLength = 23.123456789012
-    equal(render('{FocalLength}', data).filename, '23.123456789mm.jpg')
-    equal(data.focalLength, 23.123456789012)
-end)
+for _, token in ipairs { 'ISO', 'FocalLength' } do
+    test('rejects removed token ' .. token, function()
+        local parsed, err = parser.parse('{' .. token .. '}')
+        equal(parsed, nil); equal(err.code, 'UnknownToken')
+    end)
+end
 print(string.format('%d Phase 6 pure-core tests passed.', count))

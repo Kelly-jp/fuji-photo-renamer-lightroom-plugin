@@ -2,7 +2,7 @@
 
 Adobe Lightroom Classic の写真書き出し時に、ExifTool で XMP / RAW / JPG のメタデータを取得し、ユーザー指定のテンプレートに従って出力ファイルを命名するプラグインです。
 
-**Phase 1 の最小 SDK 検証プラグインを実装しました。macOS では、元フォルダーのサブフォルダーへの保存、同名時の非上書き、元 RAW / XMP のチェックサム不変についてユーザーから確認報告があります。その他の実機検証は未完了です。Phase 2 の ExifTool 読み取り専用ラッパーと診断メニューも追加しました。Phase 3〜7 の探索・項目統合・メーカー比較・テンプレート展開・ファイル名整形・衝突候補生成も実装済みです。書き出しとの統合、設定 UI、C2PA 処理、製品向け配布は未実装です。**
+**Phase 1 の最小 SDK 検証プラグインを実装しました。macOS では、元フォルダーのサブフォルダーへの保存、同名時の非上書き、元 RAW / XMP のチェックサム不変についてユーザーから確認報告があります。その他の実機検証は未完了です。Phase 2 の ExifTool 読み取り専用ラッパーと診断メニューも追加しました。Phase 3〜7 の探索・項目統合・メーカー比較・テンプレート展開・ファイル名整形・衝突候補生成も実装済みです。Phase 8 の設定 UI とサンプルプレビューも追加しました。書き出しとの統合、実写真のプレビュー、C2PA 処理、製品向け配布は未実装です。**
 
 ## 対象と機能
 
@@ -19,7 +19,7 @@ Adobe Lightroom Classic の写真書き出し時に、ExifTool で XMP / RAW / J
 ## 命名例（設計仕様）
 
 ```text
-{DateTime}_{CameraMaker}_{Camera}_{LensMaker}_{Lens}_{Sequence}.{Extension}
+{DateTime}_{CameraMaker}_{Camera}_{LensMaker}_{Lens}_{Sequence}
 
 メーカー重複省略 ON:
 20261008_123456_FUJIFILM_X-H2S_XF100-400mm_0001.jpg
@@ -33,7 +33,7 @@ Adobe Lightroom Classic の写真書き出し時に、ExifTool で XMP / RAW / J
 ## Phase 1 の読み込みと検証
 
 1. Lightroom Classic の「ファイル → プラグインマネージャー → 追加」で `src/FujiPhotoRenamer.lrplugin/` を選択する。
-2. 複製した元画像を専用カタログへ登録し、書き出し先として「Fuji Photo Renamer — Phase 1」を選ぶ。
+2. 複製した元画像を専用カタログへ登録し、書き出し先として「Fuji Photo Renamer — 開発検証版」を選ぶ。
 3. 標準の「書き出し場所」で「特定のフォルダー」または「元の写真と同じフォルダー」を選び、必要なら「サブフォルダーに保存」を指定して JPEG を書き出す。
 4. 指定先の `test_DSCF1234.jpg` のような出力と元画像のハッシュ不変を確認する。同名ファイルがある場合は失敗する。
 
@@ -45,7 +45,7 @@ SDK 宣言の最低バージョンは 11.0 です。これは確認済みの Cla
 
 プラグインを再読み込みし、「ファイル（またはライブラリ）→ プラグインエクストラ → メタデータ取得 / 入力ファイル探索を検証…」から「ExifTool でメタデータ取得」を選び、検証用 ExifTool 実行ファイルと写真を選びます。今回は `/opt/homebrew/bin/exiftool` で macOS ネイティブ読み取りを検証しました。macOS の Lightroom 内でも、ユーザーが同じ XMP の FilmSim 取得成功を確認しています。
 
-メニューが出ない場合は、プラグインマネージャーでパスがこのリポジトリの `src/FujiPhotoRenamer.lrplugin/`、表示名が「Fuji Photo Renamer — 開発検証版」、バージョンが `0.6.0.13` であることを確認します。「プラグイン作成者ツール」から再読み込みし、改善しなければ Lightroom Classic を再起動してください。
+メニューが出ない場合は、プラグインマネージャーでパスがこのリポジトリの `src/FujiPhotoRenamer.lrplugin/`、表示名が「Fuji Photo Renamer — 開発検証版」、バージョンが `0.7.2.16` であることを確認します。「プラグイン作成者ツール」から再読み込みし、改善しなければ Lightroom Classic を再起動してください。
 
 XMP の FilmSim は、既知の Lightroom Look / CameraProfile に対応します（例：Camera PROVIA/Standard → PROVIA）。未知のプロファイルは未取得として扱います。
 
@@ -53,7 +53,7 @@ XMP の FilmSim は、既知の Lightroom Look / CameraProfile に対応しま�
 
 ## Phase 3 の探索確認
 
-プラグインを再読み込みし、バージョン `0.6.0.13` を確認します。「ファイル（またはライブラリ）→ プラグインエクストラ → メタデータ取得 / 入力ファイル探索を検証…」で「XMP / RAW / JPG の探索」を選び、元 JPG / JPEG / RAF / DNG を選びます。3 モードの探索結果を表示し、ExifTool は実行しません。
+プラグインを再読み込みし、バージョン `0.7.2.16` を確認します。「ファイル（またはライブラリ）→ プラグインエクストラ → メタデータ取得 / 入力ファイル探索を検証…」で「XMP / RAW / JPG の探索」を選び、元 JPG / JPEG / RAF / DNG を選びます。3 モードの探索結果を表示し、ExifTool は実行しません。
 
 RAF / DNG と XMP の拡張子は大小文字不問、stem は完全一致です。複数候補は推測で選ばずエラーにします。原画像の書き込み、メタデータの読取・マージ、書き出しへの統合は行いません。macOS の探索診断の基本動作はユーザー報告で確認済みです。[Phase 3 の仕様・確認手順](docs/phase3-metadata-sources.md)
 
@@ -75,17 +75,22 @@ RAF / DNG と XMP の拡張子は大小文字不問、stem は完全一致です
 
 統合診断で「Phase 7 整形後」と、同名があると仮定した `_001.jpg` / `_002.jpg` の候補を表示します。実保存先の探索・予約・保存は行いません。core は OS の比較規則を明示した名前配列を受け取る設計です。[Phase 7 の仕様と手順](docs/phase7-filename-safety.md)
 
+## Phase 8 の書き出し設定 UI
+
+書き出し先「Fuji Photo Renamer — 開発検証版」にテンプレート、サンプルプレビュー、RAW 探索方法、メーカー省略、C2PA 削除設定を追加しました。トークンボタンはクリックでテンプレート末尾へ追加します。拡張子は必ず自動付加します。テンプレート入力とメーカー省略でプレビューが更新され、設定は書き出しプリセット用に宣言しています。実際の保存名は引き続き `test_<元名>.jpg`。C2PA 削除は未実装のため ON では書き出しを止めます。[Phase 8 の仕様・手動手順](docs/phase8-export-dialog.md)
+
 ## 開発の開始点
 
 1. [要件](docs/requirements.md) と [アーキテクチャ](docs/architecture.md) を読む。
 2. [技術検証項目](docs/testing.md#技術検証項目) の未確認事項を確認する。
-3. Phase 7 の Lightroom 内での整形・衝突例と残課題を記録し、次フェーズの指示を待つ。
+3. Phase 8 の Lightroom 内での設定・プレビュー・プリセット復元と残課題を記録し、次フェーズの指示を待つ。
 
 プラグインは Lightroom 内で実行します。ビルドや Lint の自動化はありません。Lua 5.1 の実行環境を用意した場合、リポジトリのルートで以下を実行できます（Lua 本体は配布物に同梱しません）。
 
 ```sh
 lua -v
 luac -p src/FujiPhotoRenamer.lrplugin/Info.lua src/FujiPhotoRenamer.lrplugin/ExportServiceProvider.lua
+lua tests/integration/export_dialog_test.lua
 lua tests/integration/phase1_provider_test.lua
 lua tests/core/filename_safety_test.lua
 lua tests/core/template_engine_test.lua
@@ -128,7 +133,8 @@ fuji-photo-renamer-lightroom-plugin/
 │   ├── phase4-metadata-merge.md
 │   ├── phase5-manufacturers.md
 │   ├── phase6-templates.md
-│   └── phase7-filename-safety.md
+│   ├── phase7-filename-safety.md
+│   └── phase8-export-dialog.md
 ├── src/
 │   └── FujiPhotoRenamer.lrplugin/
 │       ├── Info.lua
@@ -171,8 +177,9 @@ fuji-photo-renamer-lightroom-plugin/
 | [Phase 3](docs/phase3-metadata-sources.md) | 入力探索、曖昧性、探索診断と検証 |
 | [Phase 4](docs/phase4-metadata-merge.md) | 項目別の有効値採用、日時検証、採用元 |
 | [Phase 5](docs/phase5-manufacturers.md) | メーカーの比較キー・表示名・同一判定 |
-| [Phase 6](docs/phase6-templates.md) | テンプレート構文・13 トークン・メーカー省略・命名候補 |
+| [Phase 6](docs/phase6-templates.md) | テンプレート構文・10 トークン・メーカー省略・命名候補 |
 | [Phase 7](docs/phase7-filename-safety.md) | ファイル名整形・予約名・長さ制約・衝突候補 |
+| [Phase 8](docs/phase8-export-dialog.md) | 書き出し設定・サンプルプレビュー・プリセット宣言 |
 
 ## ライセンス・公式資料
 

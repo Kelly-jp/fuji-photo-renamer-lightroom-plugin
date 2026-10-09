@@ -37,3 +37,7 @@ exiftool -jumbf:all= staged-export.jpg
 ## 検証ゲート
 
 [技術検証 5](testing.md#技術検証項目) で JUMBF あり / なし / 破損、ICC あり、EXIF / XMP あり、複数 JPEG 構造を調べます。ExifTool だけの再読取に加え、独立した JPEG 構造確認や C2PA 検証ツールを選定します。元画像群のハッシュ不変を確認します。削除 ON の失敗を黙って OFF 相当で続行しません。
+
+## Phase 8 の設定 UI
+
+削除設定をチェックボックスとプリセット対象へ追加しました。既定 OFF。削除処理は Phase 10 のため、ON の値は保存・復元しますが書き出しは理由を表示して拒否します。元画像への削除コマンドは追加していません。[UI の手動確認](phase8-export-dialog.md)
