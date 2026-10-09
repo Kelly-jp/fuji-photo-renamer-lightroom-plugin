@@ -109,3 +109,13 @@ Phase 1 の回帰 66 件、Phase 2 の実 ExifTool + 合成入力の回帰 81 �
 ### Phase 3 の Lightroom 内での確認報告
 
 2026-10-09、ユーザーから探索診断が問題なく動作するとの報告を受けました。macOS の基本経路の確認として扱い、各モードのパス・異常系・Windows の個別結果は未確認のままです。[手動確認の詳細](phase3-metadata-sources.md#macos-の手動確認報告2026-10-09)
+
+## Phase 4 の検証
+
+純 core テスト `tests/core/metadata_resolver_test.lua` は 59 件成功。SDK / ExifTool / I/O / 時計を与えず、項目別優先順位、欠落・不正型、0 / false、数値、日時・閏年、読取失敗、provenance と入力不変を確認しました。
+
+macOS の合成データ連携 `metadata_resolver_native_test.lua` は 6 件成功。実 ExifTool の XMP / JPEG と合成 RAW metadata の統合、JPEG フォールバック、バイト列不変、共通診断入口・取消を確認しています。Phase 1 の 66 件、Phase 2 の 87 件、Phase 3 の 43 + 9 件も成功。[手動確認と残課題](phase4-metadata-merge.md)
+
+### Phase 4 の Lightroom 内での確認報告
+
+2026-10-09、ユーザーが DNG の FilmSim を変更して書き出したケースを再確認し、変更後の FilmSim を取得できたと報告しました。macOS の実ケースの解消報告として扱い、具体的なタグ・前後値・他の異常系の証拠とは区別します。[手動確認の詳細](phase4-metadata-merge.md#dng-現像変更ケースの手動確認2026-10-09)

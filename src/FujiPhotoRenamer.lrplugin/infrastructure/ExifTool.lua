@@ -186,7 +186,9 @@ function ExifTool.decodeMetadata(text, inputPath)
         filmTag = 'FujiFilm:FilmMode'
     end
     local profileSim, profileTag, hasProfile = resolveProfileFilmSim(tags)
-    if profileSim and (sourceKind == 'xmp' or not filmSim) then
+    -- DNG/JPEG can retain capture MakerNotes after a different development profile is saved.
+    local preferDevelopmentProfile = sourceKind == 'xmp' or extension == 'dng' or sourceKind == 'jpeg'
+    if profileSim and (preferDevelopmentProfile or not filmSim) then
         filmSim, filmTag = profileSim, profileTag
     end
     result.metadata.filmSim = filmSim

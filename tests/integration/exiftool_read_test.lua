@@ -191,6 +191,27 @@ test('keeps RAW capture simulation before embedded development profile', functio
     equal(assert(ExifTool.decodeMetadata(json.encode(data), inputPath)).metadata.filmSim, 'PROVIA')
 end)
 
+for _, extension in ipairs { 'DNG', 'dng', 'JPG', 'jpeg' } do
+    test('prefers a changed development profile over capture MakerNotes in ' .. extension, function()
+        local data = fixture(); local path = '/fixtures/sample.' .. extension; data[1].SourceFile = path
+        data[1]['XMP-crs:CameraProfile'] = 'Camera CLASSIC Neg'
+        local result = assert(ExifTool.decodeMetadata(json.encode(data), path))
+        equal(result.metadata.filmSim, 'CLASSIC_NEGATIVE')
+        equal(result.fieldSources.filmSim.tag, 'XMP-crs:CameraProfile')
+    end)
+end
+test('prefers the changed DNG LookName over its base profile and original film mode', function()
+    local data = fixture(); local path = '/fixtures/sample.dng'; data[1].SourceFile = path
+    data[1]['XMP-crs:CameraProfile'] = 'Camera PROVIA/Standard'
+    data[1]['XMP-crs:LookName'] = 'Camera ACROS+R Filter'
+    local result = assert(ExifTool.decodeMetadata(json.encode(data), path))
+    equal(result.metadata.filmSim, 'ACROS_R'); equal(result.fieldSources.filmSim.tag, 'XMP-crs:LookName')
+end)
+test('still uses capture metadata when DNG has no development profile', function()
+    local data = fixture(); local path = '/fixtures/sample.dng'; data[1].SourceFile = path
+    equal(assert(ExifTool.decodeMetadata(json.encode(data), path)).metadata.filmSim, 'PROVIA')
+end)
+
 test('resolves one CameraProfilesProfileName but does not choose between several', function()
     local path = '/fixtures/sample.xmp'
     local data = { { SourceFile = path, ['XMP-crs:CameraProfilesProfileName'] = { 'Camera PROVIA/Standard' } } }

@@ -54,7 +54,7 @@ Missing（項目欠落）と ReadError（読取失敗）を区別します。読
 
 ## 推奨ファイル配置
 
-以下は製品版に向けた配置です。Phase 1 では `Info.lua` とルートの `ExportServiceProvider.lua` のみを実装し、Phase 2 で `infrastructure/ExifTool.lua` と診断メニュー・OS runner・JSON ライブラリを追加しました。後続の core / 探索モジュールや配布用バイナリはまだ作成しません。
+以下は製品版に向けた配置です。Phase 1 では `Info.lua` とルートの `ExportServiceProvider.lua` のみを実装し、Phase 2 で `infrastructure/ExifTool.lua` と診断メニュー・OS runner・JSON ライブラリを追加しました。Phase 3 の探索モジュールと Phase 4 の MetadataResolver も追加しました。それ以外の core モジュールや配布用バイナリは未実装です。
 
 ```text
 src/FujiPhotoRenamer.lrplugin/
@@ -96,3 +96,9 @@ Phase 1 の書き出しフローは変更せず、探索と読取、テンプレ
 `infrastructure/MetadataSourceResolver.lua` は SDK の読取 API だけを使い、元画像と探索方法から `{xmp, raw, jpeg}` を返します。ExifTool、メタデータ、書き出し処理へ依存しません。SDK namespace を初期化引数で渡し、絶対パスの loadfile で読み込みます。根拠は [Phase 3 記録](phase3-metadata-sources.md) に記載しています。
 
 `Phase3Diagnostic.lua` は元画像を選択し 3 モードの探索結果を表示する単体処理です。SDK から起動する共通入口は既存の `Phase2Diagnostic.lua` に限定し、Phase 2 の読取処理は `Phase2MetadataDiagnostic.lua` へ分離します。各処理は絶対パスの loadfile と明示コンテキストで読み込みます。本番の設定 UI・MetadataResolver・全体統合は後続 Phase に残します。フォルダー列挙は呼び出し内で一度ずつ行い、永続キャッシュや汎用 FileSystem 抽象化は追加しません。
+
+## Phase 4 の境界
+
+core の MetadataResolver は SDK・ExifTool・I/O・時計を持たない純粋なテーブル処理です。Phase4Diagnostic のみに探索・読取・統合の検証用手順を組み合わせます。core へは metadata / opaque な採用元だけを渡し、生タグや読取警告の扱いは adapter に残します。
+
+既存共通入口でメタデータ検証方法を選択し、絶対パスで Phase4Diagnostic を読み込みます。これは単体成立性の確認用であり、ExportServiceProvider への全体統合は Phase 9 に残します。[Phase 4 記録](phase4-metadata-merge.md)
