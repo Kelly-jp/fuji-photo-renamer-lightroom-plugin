@@ -64,3 +64,7 @@ core は SDK、ExifTool、I/O なしで単体テストできる。外部処理�
 ## Phase 4 の限定範囲
 
 ユーザー指示に基づき F-04 の項目単位統合を純 core として追加しました。普通のテーブルから XMP → RAW → JPG の順に有効値を採用し、無効値・欠落・読取失敗を区別します。診断用の探索・読取・統合手順を追加しますが、書き出しへの統合、メーカー正規化、テンプレート等は実装しません。[Phase 4 記録](phase4-metadata-merge.md)
+
+## Phase 5 の限定範囲
+
+ユーザー指示に基づきメーカー名の正規形と同一比較を実装しました。FUJIFILM の明示別名、TAMRON / SIGMA の大小文字、未知名の trim・ASCII 大小文字正規化に対応します。F-07 の出力省略・設定 UI は未実装で、Phase 6 以降へ残します。[Phase 5 記録](phase5-manufacturers.md)

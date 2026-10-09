@@ -45,7 +45,7 @@ SDK 宣言の最低バージョンは 11.0 です。これは確認済みの Cla
 
 プラグインを再読み込みし、「ファイル（またはライブラリ）→ プラグインエクストラ → メタデータ取得 / 入力ファイル探索を検証…」から「ExifTool でメタデータ取得」を選び、検証用 ExifTool 実行ファイルと写真を選びます。今回は `/opt/homebrew/bin/exiftool` で macOS ネイティブ読み取りを検証しました。macOS の Lightroom 内でも、ユーザーが同じ XMP の FilmSim 取得成功を確認しています。
 
-メニューが出ない場合は、プラグインマネージャーでパスがこのリポジトリの `src/FujiPhotoRenamer.lrplugin/`、表示名が「Fuji Photo Renamer — 開発検証版」、バージョンが `0.3.1.10` であることを確認します。「プラグイン作成者ツール」から再読み込みし、改善しなければ Lightroom Classic を再起動してください。
+メニューが出ない場合は、プラグインマネージャーでパスがこのリポジトリの `src/FujiPhotoRenamer.lrplugin/`、表示名が「Fuji Photo Renamer — 開発検証版」、バージョンが `0.4.0.11` であることを確認します。「プラグイン作成者ツール」から再読み込みし、改善しなければ Lightroom Classic を再起動してください。
 
 XMP の FilmSim は、既知の Lightroom Look / CameraProfile に対応します（例：Camera PROVIA/Standard → PROVIA）。未知のプロファイルは未取得として扱います。
 
@@ -53,7 +53,7 @@ XMP の FilmSim は、既知の Lightroom Look / CameraProfile に対応しま�
 
 ## Phase 3 の探索確認
 
-プラグインを再読み込みし、バージョン `0.3.1.10` を確認します。「ファイル（またはライブラリ）→ プラグインエクストラ → メタデータ取得 / 入力ファイル探索を検証…」で「XMP / RAW / JPG の探索」を選び、元 JPG / JPEG / RAF / DNG を選びます。3 モードの探索結果を表示し、ExifTool は実行しません。
+プラグインを再読み込みし、バージョン `0.4.0.11` を確認します。「ファイル（またはライブラリ）→ プラグインエクストラ → メタデータ取得 / 入力ファイル探索を検証…」で「XMP / RAW / JPG の探索」を選び、元 JPG / JPEG / RAF / DNG を選びます。3 モードの探索結果を表示し、ExifTool は実行しません。
 
 RAF / DNG と XMP の拡張子は大小文字不問、stem は完全一致です。複数候補は推測で選ばずエラーにします。原画像の書き込み、メタデータの読取・マージ、書き出しへの統合は行いません。macOS の探索診断の基本動作はユーザー報告で確認済みです。[Phase 3 の仕様・確認手順](docs/phase3-metadata-sources.md)
 
@@ -63,11 +63,15 @@ RAF / DNG と XMP の拡張子は大小文字不問、stem は完全一致です
 
 書き出し処理への統合やメーカー比較は行いません。[Phase 4 の仕様・手動確認](docs/phase4-metadata-merge.md)
 
+## Phase 5 のメーカー比較
+
+統合診断の末尾で、CameraMaker / LensMaker の比較キーと同一判定を確認できます。FUJIFILM の既知表記揺れ、TAMRON / SIGMA、未知メーカーの ASCII 大小文字・空白揺れに対応します。元のメタデータやファイル名は変更しません。[Phase 5 の仕様と手順](docs/phase5-manufacturers.md)
+
 ## 開発の開始点
 
 1. [要件](docs/requirements.md) と [アーキテクチャ](docs/architecture.md) を読む。
 2. [技術検証項目](docs/testing.md#技術検証項目) の未確認事項を確認する。
-3. Phase 4 の Lightroom 内での統合結果と残課題を記録し、次フェーズの指示を待つ。
+3. Phase 5 の Lightroom 内でのメーカー比較結果と残課題を記録し、次フェーズの指示を待つ。
 
 プラグインは Lightroom 内で実行します。ビルドや Lint の自動化はありません。Lua 5.1 の実行環境を用意した場合、リポジトリのルートで以下を実行できます（Lua 本体は配布物に同梱しません）。
 
@@ -75,6 +79,7 @@ RAF / DNG と XMP の拡張子は大小文字不問、stem は完全一致です
 lua -v
 luac -p src/FujiPhotoRenamer.lrplugin/Info.lua src/FujiPhotoRenamer.lrplugin/ExportServiceProvider.lua
 lua tests/integration/phase1_provider_test.lua
+lua tests/core/manufacturer_normalizer_test.lua
 lua tests/core/metadata_resolver_test.lua
 lua tests/integration/metadata_resolver_native_test.lua /absolute/path/to/exiftool
 lua tests/integration/metadata_source_resolver_test.lua
@@ -110,7 +115,8 @@ fuji-photo-renamer-lightroom-plugin/
 │   ├── phase1-lightroom.md
 │   ├── phase2-exiftool.md
 │   ├── phase3-metadata-sources.md
-│   └── phase4-metadata-merge.md
+│   ├── phase4-metadata-merge.md
+│   └── phase5-manufacturers.md
 ├── src/
 │   └── FujiPhotoRenamer.lrplugin/
 │       ├── Info.lua
@@ -152,6 +158,7 @@ fuji-photo-renamer-lightroom-plugin/
 | [Phase 2](docs/phase2-exiftool.md) | ExifTool 単体読み取り、内部モデル、実データ検証 |
 | [Phase 3](docs/phase3-metadata-sources.md) | 入力探索、曖昧性、探索診断と検証 |
 | [Phase 4](docs/phase4-metadata-merge.md) | 項目別の有効値採用、日時検証、採用元 |
+| [Phase 5](docs/phase5-manufacturers.md) | メーカーの比較キー・表示名・同一判定 |
 
 ## ライセンス・公式資料
 

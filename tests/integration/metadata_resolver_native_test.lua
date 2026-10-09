@@ -71,6 +71,9 @@ for _, choice in ipairs { 'ok', 'cancel' } do
         if choice == 'ok' then
             assert(panels == 2 and #messages == 1 and messages[1][1] == 'Phase 4：項目単位の統合結果')
             assert(messages[1][2]:find('（xmp）', 1, true))
+            assert(messages[1][2]:find('CameraMaker 比較キー：FUJIFILM', 1, true))
+            assert(messages[1][2]:find('LensMaker 比較キー：FUJIFILM', 1, true))
+            assert(messages[1][2]:find('同一メーカー：はい', 1, true))
         else
             assert(panels == 0 and #messages == 0)
         end
