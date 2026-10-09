@@ -54,7 +54,7 @@ Missing（項目欠落）と ReadError（読取失敗）を区別します。読
 
 ## 推奨ファイル配置
 
-以下は製品版に向けた配置です。Phase 1 では `Info.lua` とルートの `ExportServiceProvider.lua` のみを実装し、Phase 2 で `infrastructure/ExifTool.lua` と診断メニュー・OS runner・JSON ライブラリを追加しました。Phase 3 の探索モジュールと Phase 4 の MetadataResolver も追加しました。Phase 5 の ManufacturerNormalizer、Phase 6 の TemplateParser / TokenResolver も追加しました。FilenameSanitizer / CollisionResolver と配布用バイナリは未実装です。
+以下は製品版に向けた配置です。Phase 1 では `Info.lua` とルートの `ExportServiceProvider.lua` のみを実装し、Phase 2 で `infrastructure/ExifTool.lua` と診断メニュー・OS runner・JSON ライブラリを追加しました。Phase 3 の探索モジュールと Phase 4 の MetadataResolver も追加しました。Phase 5 の ManufacturerNormalizer、Phase 6 の TemplateParser / TokenResolver も追加しました。Phase 7 の FilenameSanitizer / CollisionResolver も追加しました。配布用バイナリは未実装です。
 
 ```text
 src/FujiPhotoRenamer.lrplugin/
@@ -112,3 +112,7 @@ ManufacturerNormalizer は普通のメーカー文字列だけを受け取り、
 TemplateParser は文字列を解析し、TokenResolver は解析結果・内部 Metadata・出力コンテキストから候補名を生成します。TokenResolver には純 core の ManufacturerNormalizer と MetadataResolver を明示的に渡し、日時の検証規則を共有します。SDK / ExifTool / I/O / 時計への依存はありません。元 Metadata と解析結果は不変です。
 
 既存 Phase4Diagnostic だけがモジュール読込と写真名取得を行い、固定テンプレートで ON/OFF を表示します。Sequence は仮値、Extension は予定する JPEG の値を明記します。安全なファイル名の確定・保存は後続 Phase の責務です。[Phase 6 記録](phase6-templates.md)
+
+## Phase 7 の境界
+
+FilenameSanitizer は拡張子付き候補から整形済み名前を返し、CollisionResolver は整形済み名と既存名・予約名配列から次の候補を返します。CollisionResolver へ純 core の Sanitizer を渡して候補の長さを再検証します。比較キー関数は OS 境界が用意する純粋な処理です。Unicode の同一性・OS の長さ制限を core 内で推測しません。探索・予約更新・確定保存は adapter / infrastructure の責務として残します。既存診断だけに仮想例を追加し、書き出しフローは変えません。[Phase 7 記録](phase7-filename-safety.md)

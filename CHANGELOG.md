@@ -4,6 +4,9 @@
 
 ### Added
 
+- Phase 7 の純 Lua FilenameSanitizer / CollisionResolver を追加。禁止文字、制御文字除去、UTF-8・予約名・長さ制約、既存名と予約名からの連番候補に対応。
+- Phase 7 core 76 件と統合診断の整形・仮想衝突例を検証。実保存と Phase 8 以降は未実装。
+
 - Phase 6 の純 Lua TemplateParser / TokenResolver を追加。13 トークン、意味に基づくメーカー省略、欠落区切り整理と診断候補 ON/OFF に対応。
 - Phase 6 core 64 件と既存連携の候補表示・入力不変を検証。書き出し統合と Phase 7 以降は未着手。
 
