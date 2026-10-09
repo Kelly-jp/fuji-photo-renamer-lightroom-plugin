@@ -90,3 +90,9 @@ SDK 契約の確認と実機での成立性は分けます。特に `copy` の�
 単体診断メニュー `Phase2Diagnostic.lua` から `infrastructure/ExifTool.lua` を呼び出します。ExifTool の生タグはラッパー内で camelCase の内部項目へ変換し、採用元と診断は別テーブルに保持します。core は依存しません。OS 別の `ExifToolRead.sh` / `ExifToolRead.ps1` は、SDK にない実行時間制限と出力取得を補う小さなプロセス境界です。汎用 Platform や FileSystem の抽象化は後続の必要性が出るまで作りません。
 
 Phase 1 の書き出しフローは変更せず、探索と読取、テンプレートとタグ名を混在させません。ライセンス・固定版を伴う純 Lua JSON ライブラリの manifest を `third_party/` に置き、SDK の require 制約によりソースはルートの `dkjson.lua` に置きます。検証メニューが絶対パスの loadfile でルートの `ExifToolLoader.lua` を読み込み、この入口が同じ方法で JSON と infrastructure 本体を読み込み、プラグイン専用コンテキストを引数として渡します。ExifTool の配布ペイロードは別扱いとします。[Phase 2 記録](phase2-exiftool.md)
+
+## Phase 3 の境界
+
+`infrastructure/MetadataSourceResolver.lua` は SDK の読取 API だけを使い、元画像と探索方法から `{xmp, raw, jpeg}` を返します。ExifTool、メタデータ、書き出し処理へ依存しません。SDK namespace を初期化引数で渡し、絶対パスの loadfile で読み込みます。根拠は [Phase 3 記録](phase3-metadata-sources.md) に記載しています。
+
+`Phase3Diagnostic.lua` は元画像を選択し 3 モードの探索結果を表示する単体処理です。SDK から起動する共通入口は既存の `Phase2Diagnostic.lua` に限定し、Phase 2 の読取処理は `Phase2MetadataDiagnostic.lua` へ分離します。各処理は絶対パスの loadfile と明示コンテキストで読み込みます。本番の設定 UI・MetadataResolver・全体統合は後続 Phase に残します。フォルダー列挙は呼び出し内で一度ずつ行い、永続キャッシュや汎用 FileSystem 抽象化は追加しません。
