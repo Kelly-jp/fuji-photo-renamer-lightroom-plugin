@@ -66,3 +66,15 @@ exiftool -j -G1 -s sample.jpg
 実装時は絶対パス、ユーザー設定ファイルの無効化、オプションと入力パスの分離、ファイル名文字コードを公式 CLI 資料で確認します。JSON のグループを捨てて同名タグを上書きしないでください。プラグイン自身が元画像へタグを書き戻すことはありません。
 
 公式の [FujiFilm タグ一覧](https://exiftool.org/TagNames/FujiFilm.html) には FilmMode が記載されていますが、RAF の各機種で必要な 5 項目が揃うかは未検証です。[タグ名の調べ方](https://exiftool.org/TagNames/) を参照し、取得結果と対応表をフィクスチャ化します。
+
+## Phase 2 で確認した単体取得
+
+ExifTool 13.55 で許諾済み X-H2S RAF の Make / Model / LensMake / LensModel / FilmMode / Saturation を実取得し、グループ付きタグを確認しました。LensMake は FUJIFILM として取得でき、推定は不要でした。FilmMode = 0 は PROVIA として扱い、0 を欠落にしません。白黒・ACROS は確認済み Saturation コードを先に判定します。全機種・全レンズへ一般化しません。
+
+合成 JPEG / XMP でもタググループを確認しています。ラッパーの詳細な対応表は [Phase 2 記録](phase2-exiftool.md#確認したタグ対応) を参照してください。日時の暦検証・トークン書式、Composite LensID による推測、入力探索、複数入力の項目別マージは未実装です。XMP FilmSim は、実ファイルで確認した CRS の既知の LookName / CameraProfile に限って対応しています。採用する日付の有効性は後続の項目解決・トークン処理で検証するため、Phase 2 の文字列取得だけを妥当性確認済みとはみなしません。
+
+### XMP の編集プロファイル
+
+2026-10-09 の修正で、Rust 版 fphoto-renamer の取得ロジックを参考に `XMP-crs:LookName`、`XMP-crs:CameraProfile`、`XMP-crs:CameraProfilesProfileName` を固定取得対象に追加しました。許諾された XMP の Camera PROVIA/Standard を PROVIA と解決しています。これはユーザーが現像で選択した編集プロファイルの解釈です。撮影時 MakerNotes とは採用元を区別します。
+
+既知名だけを対応させ、未知のカスタム名・Adobe Color 等は FilmSim として採用しません。XMP 内は Look 名を先に採用し、RAW / JPG は撮影時コードを優先します。異なるファイルの項目別マージは引き続き後続 Phase の責務です。[詳細な修正根拠](phase2-exiftool.md#xmp-filmsim-の修正2026-10-09)

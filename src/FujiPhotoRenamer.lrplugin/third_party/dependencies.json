@@ -1,0 +1,10 @@
+{
+  "dkjson": {
+    "version": "2.11",
+    "url": "https://dkolf.de/dkjson-lua/dkjson-2.11.lua",
+    "sha256": "197cb50834c642f84b4cf99fe724932c50e6d9c92faec7ad89aa25e91df4d481",
+    "bytes": 25009,
+    "license": "MIT",
+    "path": "dkjson.lua"
+  }
+}

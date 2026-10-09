@@ -2,7 +2,7 @@
 
 ## 現在の状態
 
-Phase 1 の最小プラグインと Lua 5.1 の SDK 境界テストを追加しました。ExifTool と製品機能は未実装、macOS の基本書き出し、同名時の非上書き、元 RAW / XMP のチェックサム不変はユーザー報告で確認しています。詳細は [Phase 1 の実機確認報告](phase1-lightroom.md#macos-の実機確認報告) を参照してください。以下の残項目は実施計画であり、合格結果ではありません。公式ガイドの Lua 5.1 互換性を確認し、Phase 1 は外部テストフレームワークなしで Lua 5.1 を使用します。製品向けフレームワーク・Lint は未選定です。数値カバレッジ目標は設けず、安全な動作と失敗処理の検証を必須とします。
+Phase 1 の最小プラグインと Lua 5.1 の SDK 境界テストを追加しました。Phase 2 の ExifTool 単体連携・診断メニューも追加しました。書き出しとの全体統合は未実装、macOS の基本書き出し、同名時の非上書き、元 RAW / XMP のチェックサム不変はユーザー報告で確認しています。詳細は [Phase 1 の実機確認報告](phase1-lightroom.md#macos-の実機確認報告) を参照してください。以下の残項目は実施計画であり、合格結果ではありません。公式ガイドの Lua 5.1 互換性を確認し、Phase 1 は外部テストフレームワークなしで Lua 5.1 を使用します。製品向けフレームワーク・Lint は未選定です。数値カバレッジ目標は設けず、安全な動作と失敗処理の検証を必須とします。
 
 ## テスト層と配置
 
@@ -88,4 +88,14 @@ Phase 1 の最小プラグインと Lua 5.1 の SDK 境界テストを追加し�
 
 リポジトリのルートで `lua tests/integration/phase1_provider_test.lua` を Lua 5.1 で実行します。登録、保存先、元パス、レンダリング結果、既存ファイル、コピー失敗、キャンセル、標準保存先、複数元フォルダー、サブフォルダー検証・作成失敗等の 66 ケースを検証します。SDK のダブルはメモリ上で動作し、実写真やカタログへアクセスしません。非上書きコピーの SDK 契約を前提としたエラー処理を確認するだけで、実際の OS / SDK の保証にはなりません。
 
-手動 Integration Test は [専用手順](phase1-lightroom.md#手動検証手順) で行います。実機結果が記録されるまで Phase 1 成立済みとして Phase 2 に進めません。
+手動 Integration Test は [専用手順](phase1-lightroom.md#手動検証手順) で行います。macOS 基本経路の確認報告とユーザーの次フェーズ指示に基づき Phase 2 を開始しました。Phase 1 の Windows 等の残項目は継続して記録します。
+
+## Phase 2 の検証
+
+`lua tests/integration/exiftool_read_test.lua /absolute/path/to/exiftool /absolute/path/to/test-copy.RAF` を macOS の POSIX 対応 Lua 5.1 で実行します。実行ファイルと RAF を明示し、個人写真を自動探索しません。今回の全ケースは 83 件成功し、Phase 1 の 66 件も成功しています。
+
+JSON・タグ変換の単体検証に加え、実プロセスの異常終了・タイムアウト・標準エラー、実 ExifTool による合成 JPEG / XMP と許諾済み RAF の読取を確認しました。RAW の SHA-256 と合成 JPEG / XMP のバイト列不変も確認しました。SDK 境界はテスト用 adapter であり、Lightroom 内・Windows の実機成功とは区別します。取得モデル・公式出典・手動ゲートは [Phase 2 記録](phase2-exiftool.md) を参照してください。
+
+### Phase 2 の Lightroom 内での確認報告
+
+2026-10-09、ユーザーが修正対象と同じ XMP を診断メニューで選び、FilmSim の取得成功を報告しました。macOS の診断起動と XMP FilmSim 表示の確認結果として記録します。SDK adapter による自動テストとは区別し、Windows や異常系の実機結果へ一般化しません。[手動確認の詳細](phase2-exiftool.md#macos-の手動確認報告2026-10-09)

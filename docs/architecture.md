@@ -54,7 +54,7 @@ Missing（項目欠落）と ReadError（読取失敗）を区別します。読
 
 ## 推奨ファイル配置
 
-以下は製品版に向けた配置です。Phase 1 では `Info.lua` とルートの `ExportServiceProvider.lua` のみを実装し、後続のモジュールや依存バイナリは作成しません。
+以下は製品版に向けた配置です。Phase 1 では `Info.lua` とルートの `ExportServiceProvider.lua` のみを実装し、Phase 2 で `infrastructure/ExifTool.lua` と診断メニュー・OS runner・JSON ライブラリを追加しました。後続の core / 探索モジュールや配布用バイナリはまだ作成しません。
 
 ```text
 src/FujiPhotoRenamer.lrplugin/
@@ -84,3 +84,9 @@ src/FujiPhotoRenamer.lrplugin/
 `showSections` で標準の `exportLocation` を表示します。`updateExportSettings` で最終保存先設定をセッション用 `phase1Destination` に退避してから、一時レンダリングへ切り替えます。これはユーザーの保存先拡張指示に基づく変更で、元画像フォルダーへ直接レンダリングさせないためです。`updateExportSettings` でも `LR_format = JPEG` と `LR_export_destinationType = tempFolder` を固定し、他サービスの設定混入を防ぎます。`processRenderedPhotos` は SDK が用意するタスクで動き、元パスは読み取りだけ、保存は `LrFileUtils.copy` のみです。元画像・レンダリング結果の移動・削除はせず、一時出力の清掃は Lightroom に任せます。「元の写真と同じフォルダー」は写真ごとの元パスの親を使い、明示的に指定されたサブフォルダーだけ必要時に作成します。
 
 SDK 契約の確認と実機での成立性は分けます。特に `copy` の競合時動作、コピー失敗時の部分ファイル、リンクの扱いは実機ゲートに残します。[Phase 1 記録](phase1-lightroom.md)
+
+## Phase 2 の境界
+
+単体診断メニュー `Phase2Diagnostic.lua` から `infrastructure/ExifTool.lua` を呼び出します。ExifTool の生タグはラッパー内で camelCase の内部項目へ変換し、採用元と診断は別テーブルに保持します。core は依存しません。OS 別の `ExifToolRead.sh` / `ExifToolRead.ps1` は、SDK にない実行時間制限と出力取得を補う小さなプロセス境界です。汎用 Platform や FileSystem の抽象化は後続の必要性が出るまで作りません。
+
+Phase 1 の書き出しフローは変更せず、探索と読取、テンプレートとタグ名を混在させません。ライセンス・固定版を伴う純 Lua JSON ライブラリの manifest を `third_party/` に置き、SDK の require 制約によりソースはルートの `dkjson.lua` に置きます。検証メニューが絶対パスの loadfile でルートの `ExifToolLoader.lua` を読み込み、この入口が同じ方法で JSON と infrastructure 本体を読み込み、プラグイン専用コンテキストを引数として渡します。ExifTool の配布ペイロードは別扱いとします。[Phase 2 記録](phase2-exiftool.md)
