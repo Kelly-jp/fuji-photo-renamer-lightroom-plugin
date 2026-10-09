@@ -17,7 +17,7 @@ local function metadata()
         lensMaker = 'FUJIFILM Corporation', lens = 'XF100-400mm', filmSim = 'PROVIA', iso = 800, focalLength = 100 }
 end
 local function options(overrides)
-    local result = { extension = 'jpg', original = 'DSCF1234', sequence = 1 }
+    local result = { extension = 'jpg', original = 'DSCF1234' }
     for key, value in pairs(overrides or {}) do result[key] = value end
     return result
 end
@@ -31,7 +31,7 @@ end
 
 for token, expected in pairs { Date = '20261009', Time = '123456', DateTime = '20261009_123456',
     Original = 'DSCF1234', CameraMaker = 'FUJIFILM', Camera = 'X-H2S', LensMaker = 'FUJIFILM',
-    Lens = 'XF100-400mm', FilmSim = 'PROVIA', Sequence = '0001' } do
+    Lens = 'XF100-400mm', FilmSim = 'PROVIA' } do
     test('expands ' .. token, function() equal(render('{' .. token .. '}').filename, expected .. '.jpg') end)
 end
 test('always appends the actual extension', function()
@@ -102,9 +102,6 @@ test('preserves source punctuation and parsed AST across calls', function()
     equal(assert(resolver.resolve(parsed, data, opts)).filename, 'FUJIFILM_FUJIFILM_IMG__1234_.jpg')
     equal(data.lensMaker, 'FUJIFILM Corporation'); equal(parsed.segments[2].value, '_')
 end)
-test('formats longer sequences', function()
-    equal(render('{Sequence}', nil, { sequence = 10000 }).filename, '10000.jpg')
-end)
 test('does not convert timestamp offsets or use fractional seconds', function()
     local data = metadata(); data.captureDateTime = '2026-10-09T12:34:56.999+09:00'
     equal(render('{DateTime}', data).filename, '20261009_123456.jpg')
@@ -116,7 +113,6 @@ for _, case in ipairs {
     { '{Date}', {}, {}, 'MissingDateTime' }, { '{Time}', { captureDateTime = '2026:02:29 12:00:00' }, {}, 'MissingDateTime' },
     { '{Lens}', {}, {}, 'EmptyFilename' }, { '{Lens}_{Lens}', {}, {}, 'EmptyFilename' },
     { '{Camera}', { camera = false }, {}, 'InvalidTokenValue' },
-    { '{Sequence}', {}, { sequence = 0 }, 'InvalidSequence' }, { '{Sequence}', {}, { sequence = 1.5 }, 'InvalidSequence' },
     { '{Original}', {}, { original = '' }, 'MissingOriginal' },
     { '{Original}', {}, { extension = '.jpg' }, 'InvalidExtension' },
     { '{Original}', {}, { omitDuplicateManufacturer = 'ON' }, 'InvalidOption' },
@@ -144,7 +140,7 @@ test('rejects invalid capture dates', function()
     equal(result, nil); equal(err.code, 'MissingDateTime')
 
 end)
-for _, token in ipairs { 'ISO', 'FocalLength' } do
+for _, token in ipairs { 'ISO', 'FocalLength', 'Sequence' } do
     test('rejects removed token ' .. token, function()
         local parsed, err = parser.parse('{' .. token .. '}')
         equal(parsed, nil); equal(err.code, 'UnknownToken')

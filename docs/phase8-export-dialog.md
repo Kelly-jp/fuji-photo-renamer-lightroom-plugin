@@ -10,7 +10,7 @@
 
 | キー | 初期値 | 用途 |
 | --- | --- | --- |
-| fprTemplate | `{DateTime}_{Original}_{Sequence}` | 命名テンプレート |
+| fprTemplate | `{DateTime}_{Original}` | 命名テンプレート |
 | fprRawSearchMode | same_then_parent | JPG と同階層 / 親階層 / 同階層→親階層 |
 | fprOmitDuplicateManufacturer | true | 同一メーカーの場合に LensMaker を省略 |
 | fprRemoveC2pa | false | 新規書き出し JPEG の C2PA 削除設定 |
@@ -70,3 +70,7 @@ Lightroom 内の macOS / Windows 表示、長文の折り返し・スクロー�
 SDK 14.3 の Adobe 作成リファレンス LrView.html、LrView edit view properties.html、LrView control view properties.html を調査しました。標準 edit_field にキャレット位置・選択範囲を取得または指定する公開 API は確認できませんでした。標準 SDK の範囲では位置挿入を実装せず、末尾追加を維持します。OS のキー入力自動化や未公開 API に依存しません。
 
 ユーザー指示により ISO / FocalLength をトークンとボタンから削除し、現在は 10 個です。既存テンプレートに残る場合は修正を促すエラーとします。内部の既存メタデータ読取項目は維持します。0.7.2.16 で 10 個のボタン、廃止トークンのエラー、正常テンプレートでの復帰を手動確認してください。
+
+## Phase 9 での更新（2026-10-10）
+
+Sequence は廃止済みで、ボタンは現在9個です。番号は衝突時のみ付与し、サンプル連番はありません。旧末尾トークンは UI 読み込み・プリセット適用時に移行します。実写真取得とテンプレート保存も Phase 9 に追加済みです。

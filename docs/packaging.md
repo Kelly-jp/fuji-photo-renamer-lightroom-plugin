@@ -43,3 +43,7 @@ FujiPhotoRenamer.lrplugin/
 Phase 2 は明示指定した開発用 ExifTool で読取を検証します。今回の検証版は Homebrew の 13.55 です。これは同梱や自己完結配布の完成ではなく、配布要件は維持します。既定の同梱パスにツールがなければエラーにし、PATH へフォールバックしません。
 
 純 Lua JSON ライブラリ dkjson 2.11 のみをソース管理へ追加しました。25,009 bytes、MIT、Lua 5.1 対応を確認し、公式ハッシュ・取得 URL を `third_party/dependencies.json`、ライセンスを `THIRD_PARTY_NOTICES/dkjson-LICENSE.txt` に固定します。OS runner とこれらの通知は将来の配布に必要な構成要素です。ExifTool / Perl のペイロード、取得・ZIP スクリプトは Phase 12 まで追加しません。
+
+## Phase 9 の検証用パス
+
+fprExifToolPath を UI とプリセット対象に追加しました。空欄なら同梱パスを解決し、指定があればその絶対パスを使います。PATH や Homebrew の自動探索は行いません。未同梱時は書き出し開始を止めます。これは統合検証用の設定で、自己完結配布・取得スクリプト・バイナリ同梱は引き続き Phase 12 に残します。

@@ -1,7 +1,6 @@
 local Parser = {}
 local supported = { Date = true, Time = true, DateTime = true, Original = true,
-    CameraMaker = true, Camera = true, LensMaker = true, Lens = true, FilmSim = true,
-    Sequence = true }
+    CameraMaker = true, Camera = true, LensMaker = true, Lens = true, FilmSim = true }
 local function failure(code, message, position)
     return nil, { code = code, message = message, position = position }
 end

@@ -2,36 +2,13 @@ local pluginPath = 'src/FujiPhotoRenamer.lrplugin'
 local count = 0
 local function equal(actual, expected) assert(actual == expected, tostring(actual) .. ' ~= ' .. tostring(expected)) end
 local function test(name, callback) callback(); count = count + 1; print('PASS ' .. name) end
-local function properties(initial)
-    local values, observers = {}, {}
-    for key, value in pairs(initial or {}) do values[key] = value end
-    local methods = {}
-    function methods:addObserver(key, owner, callback)
-        observers[key] = observers[key] or {}
-        observers[key][owner] = callback
-    end
-    function methods:removeObserver(key, owner) if observers[key] then observers[key][owner] = nil end end
-    local proxy
-    proxy = setmetatable({}, {
-        __index = function(_, key) return methods[key] or values[key] end,
-        __newindex = function(_, key, value)
-            if values[key] == value then return end
-            values[key] = value
-            for owner, callback in pairs(observers[key] or {}) do callback(owner, proxy, key, value) end
-        end,
-    })
-    return proxy, function()
-        local total = 0
-        for _, entries in pairs(observers) do for _ in pairs(entries) do total = total + 1 end end
-        return total
-    end
-end
+local properties = assert(loadfile('tests/support/observable_properties.lua'))()
 local factory = {}
 for _, kind in ipairs { 'static_text', 'edit_field', 'popup_menu', 'checkbox', 'push_button', 'row' } do
     factory[kind] = function(_, specification) specification.kind = kind; return specification end
 end
 local namespaces = {
-    LrDialogs = {}, LrFileUtils = {}, LrTasks = {},
+    LrDialogs = {}, LrFileUtils = {}, LrTasks = {}, LrApplication = {},
     LrPathUtils = { child = function(parent, leaf) return parent .. '/' .. leaf end },
     LrView = { bind = function(key) return { bindingKey = key } end },
 }
@@ -50,15 +27,15 @@ local function findControl(props, key)
     error('Missing control ' .. key)
 end
 
-test('uses Lightroom standard export location and four persistent settings', function()
-    equal(provider.showSections[1], 'exportLocation'); equal(#provider.exportPresetFields, 4)
-    local expected = { fprTemplate = 'string', fprRawSearchMode = 'string', fprOmitDuplicateManufacturer = 'boolean', fprRemoveC2pa = 'boolean' }
+test('uses Lightroom standard export location and five persistent settings', function()
+    equal(provider.showSections[1], 'exportLocation'); equal(#provider.exportPresetFields, 5)
+    local expected = { fprTemplate = 'string', fprRawSearchMode = 'string', fprOmitDuplicateManufacturer = 'boolean', fprRemoveC2pa = 'boolean', fprExifToolPath = 'string' }
     for _, field in ipairs(provider.exportPresetFields) do equal(type(field.default), expected[field.key]); expected[field.key] = nil end
     equal(next(expected), nil)
 end)
 test('shows a sample when no photo or ExifTool is available', function()
     local props = start()
-    equal(props.fprPreview, '20261008_123456_DSCF1234_0001.jpg')
+    equal(props.fprPreview, '20261008_123456_DSCF1234.jpg')
     equal(props.fprOmitDuplicateManufacturer, true); equal(props.fprRemoveC2pa, false)
     equal(props.fprRawSearchMode, 'same_then_parent'); equal(props.LR_cantExportBecause, nil)
 end)
@@ -119,15 +96,15 @@ test('makes sample and actual export behavior explicit', function()
     equal(section.bind_to_object, props)
     local labels = {}
     for _, view in ipairs(section) do if type(view.title) == 'string' then labels[#labels + 1] = view.title end end
-    assert(table.concat(labels, '\n'):find('サンプル情報', 1, true))
-    assert(props.fprExportStatus:find('test_<元ファイル名>.jpg', 1, true))
+    assert(props.fprPreviewSource:find('サンプル情報', 1, true))
+    assert(props.fprExportStatus:find('このテンプレートで保存', 1, true))
 end)
 test('removes observers on close and avoids duplicates on reopening', function()
-    local props, observed = start(); equal(observed(), 4)
-    provider.startDialog(props); equal(observed(), 4)
+    local props, observed = start(); equal(observed(), 5)
+    provider.startDialog(props); equal(observed(), 5)
     provider.endDialog(props, 'cancel'); equal(observed(), 0)
     local preview = props.fprPreview; props.fprTemplate = '{FilmSim}'; equal(props.fprPreview, preview)
-    provider.startDialog(props); equal(observed(), 4); equal(props.fprPreview, 'PROVIA.jpg')
+    provider.startDialog(props); equal(observed(), 5); equal(props.fprPreview, 'PROVIA.jpg')
     provider.endDialog(props, 'changedServiceProvider'); equal(observed(), 0)
     provider.endDialog(props, 'ok'); equal(observed(), 0)
 end)
@@ -178,7 +155,7 @@ test('token buttons append each supported token and immediately update the previ
         end
     end
     local n = 0; for _ in pairs(titles) do n = n + 1 end
-    equal(n, 10); equal(titles['{Extension}'], nil); equal(titles['{ISO}'], nil); equal(titles['{FocalLength}'], nil)
+    equal(n, 9); equal(titles['{Extension}'], nil); equal(titles['{ISO}'], nil); equal(titles['{FocalLength}'], nil); equal(titles['{Sequence}'], nil)
 end)
 test('migrates the old extension suffix on opening and applying presets', function()
     local props = start { fprTemplate = '{Original}.{Extension}' }
@@ -199,4 +176,11 @@ for _, template in ipairs { '{ISO}', '{FocalLength}' } do
         props.fprTemplate = '{Original}'; equal(props.LR_cantExportBecause, nil)
     end)
 end
+test('migrates the legacy terminal sequence and extension suffix', function()
+    local props = start { fprTemplate = '{DateTime}_{Original}_{Sequence}.{Extension}' }
+    equal(props.fprTemplate, '{DateTime}_{Original}'); equal(props.fprPreview, '20261008_123456_DSCF1234.jpg')
+    props.fprTemplate = '{Original}_{Sequence}'; equal(props.fprTemplate, '{Original}')
+    props.fprTemplate = '{{Sequence}}_{Original}'; equal(props.fprPreview, '{Sequence}_DSCF1234.jpg')
+    props.fprTemplate = '{Sequence}_{Original}'; assert(props.LR_cantExportBecause)
+end)
 print(string.format('%d Phase 8 SDK-boundary tests passed; Lightroom manual verification remains required.', count))

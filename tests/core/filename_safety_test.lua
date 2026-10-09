@@ -65,7 +65,7 @@ test('finds the first free number across disk names and session reservations', f
     equal(result.filename, 'photo_003.jpg'); equal(result.collisionNumber, 3)
     equal(existing[1], 'PHOTO.JPG'); equal(#reserved, 2)
 end)
-test('fills numbering gaps and preserves source sequence and multiple dots', function()
+test('fills numbering gaps and preserves literal numeric suffixes and multiple dots', function()
     local result = assert(resolve('photo.raw_0001.jpg', { existingNames = { 'photo.raw_0001.jpg', 'photo.raw_0001_002.jpg' } }))
     equal(result.filename, 'photo.raw_0001_001.jpg')
 end)
@@ -120,12 +120,12 @@ end
 test('composes template expansion, sanitization, and collision resolution without SDK or I/O', function()
     local parser = loadCore('TemplateParser')
     local tokens = loadCore('TokenResolver', { normalizer = loadCore('ManufacturerNormalizer'), metadataResolver = loadCore('MetadataResolver') })
-    local expanded = assert(tokens.resolve(assert(parser.parse('{CameraMaker}_{Camera}_{LensMaker}_{Lens}_{Original}_{Sequence}')),
+    local expanded = assert(tokens.resolve(assert(parser.parse('{CameraMaker}_{Camera}_{LensMaker}_{Lens}_{Original}')),
         { cameraMaker = 'FUJIFILM', camera = 'X-H2S', lensMaker = 'Fujifilm Corporation', lens = 'XF18/55mm: Test' },
-        { original = 'DSCF1234', extension = 'jpg', sequence = 1 }))
+        { original = 'DSCF1234', extension = 'jpg' }))
     local safe = assert(sanitizer.sanitize(expanded.filename))
-    equal(safe.filename, 'FUJIFILM_X-H2S_XF18_55mm_ Test_DSCF1234_0001.jpg')
+    equal(safe.filename, 'FUJIFILM_X-H2S_XF18_55mm_ Test_DSCF1234.jpg')
     equal(assert(resolve(safe.filename, { existingNames = { safe.filename } })).filename,
-        'FUJIFILM_X-H2S_XF18_55mm_ Test_DSCF1234_0001_001.jpg')
+        'FUJIFILM_X-H2S_XF18_55mm_ Test_DSCF1234_001.jpg')
 end)
 print(string.format('%d Phase 7 pure-core tests passed.', count))
