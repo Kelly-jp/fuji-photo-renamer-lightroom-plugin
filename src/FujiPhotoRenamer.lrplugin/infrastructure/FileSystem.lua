@@ -69,11 +69,16 @@ function FileSystem.save(renderedPath, filename, destination, originalPath, sour
         if not candidate then return nil, candidateError.code .. '：' .. candidateError.message end
         local path = LrPathUtils.child(directory, candidate.filename)
         -- Ask the destination filesystem about every candidate; do not approximate Unicode equivalence in Lua.
-        if LrFileUtils.exists(path) then occupied[#occupied + 1] = candidate.filename
+        local existing = LrFileUtils.exists(path)
+        if existing == 'file' and LrPathUtils.standardizePath(LrFileUtils.resolveAllAliases(path)) == renderPath then
+            -- The SDK may have rendered directly to the final name when using Export With Previous.
+            reserved[#reserved + 1] = candidate.filename
+            return path
+        elseif existing then occupied[#occupied + 1] = candidate.filename
         else
-            local copied, message = LrFileUtils.copy(renderedPath, path)
-            -- A failed copy might have left a partial file. Do not delete or reinterpret it as a collision.
-            if not copied then return nil, 'JPEG を保存できません：' .. path .. '\n' .. tostring(message or '原因不明') end
+            -- Transfer only the validated SDK rendition. Copying would leave a second JPEG outside temp.
+            local moved, message = LrFileUtils.move(renderedPath, path)
+            if not moved then return nil, 'JPEG を保存できません：' .. path .. '\n' .. tostring(message or '原因不明') end
             reserved[#reserved + 1] = candidate.filename
             return path
         end

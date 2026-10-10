@@ -39,12 +39,22 @@ function provider.updateExportSettings(exportSettings)
     local reason = exportDialog.cannotExportBecause(exportSettings)
     if reason then error(reason) end
     -- Keep the user's final destination before redirecting only the SDK's render output.
-    exportSettings.phase1Destination = {
-        kind = exportSettings.LR_export_destinationType,
-        path = exportSettings.LR_export_destinationPathPrefix,
-        useSubfolder = exportSettings.LR_export_useSubfolder,
-        subfolder = exportSettings.LR_export_destinationPathSuffix,
-    }
+    local previous = exportSettings.phase1Destination
+    if exportSettings.LR_export_destinationType == 'tempFolder' then
+        if type(previous) ~= 'table' or not previous.kind or previous.kind == 'tempFolder' then
+            error('前回の最終保存先を復元できません。書き出し画面で保存先を指定し直してください。')
+        end
+        exportSettings.phase1Destination = {
+            kind = previous.kind, path = previous.path, useSubfolder = previous.useSubfolder, subfolder = previous.subfolder,
+        }
+    else
+        exportSettings.phase1Destination = {
+            kind = exportSettings.LR_export_destinationType,
+            path = exportSettings.LR_export_destinationPathPrefix,
+            useSubfolder = exportSettings.LR_export_useSubfolder,
+            subfolder = exportSettings.LR_export_destinationPathSuffix,
+        }
+    end
     exportSettings.LR_format = 'JPEG'
     exportSettings.LR_export_destinationType = 'tempFolder'
     exportSettings.LR_export_useSubfolder = false
@@ -66,8 +76,13 @@ local function saveRendition(rendition, destination, progressScope, settings, se
         or LrFileUtils.exists(originalPath) ~= 'file' or not LrFileUtils.isReadable(originalPath) then
         return false, '元画像のパスを取得できないか、元画像が読み取れません。'
     end
+    local renderCanonical = LrPathUtils.standardizePath(LrFileUtils.resolveAllAliases(renderedPath)):lower()
+    local function isRenderedSource(path)
+        return LrPathUtils.standardizePath(LrFileUtils.resolveAllAliases(path)):lower() == renderCanonical
+    end
+    if isRenderedSource(originalPath) then return false, 'レンダリング結果が元画像と同じため保存しません。' end
     local metadata, readError = context.metadataReader.read(originalPath, settings.fprRawSearchMode,
-        settings.executablePath, function() return progressScope:isCanceled() end)
+        settings.executablePath, function() return progressScope:isCanceled() end, isRenderedSource)
     if not metadata then return false, readError.code .. '：' .. readError.message end
     if progressScope:isCanceled() then return false, '書き出しがキャンセルされました。' end
     local parsed, parseError = context.parser.parse(settings.fprTemplate)
@@ -174,7 +189,7 @@ function provider.processRenderedPhotos(functionContext, exportContext)
         string.format('保存済み：%d 枚\n失敗：%d 枚\n保存先：%s',
             savedCount, failedCount, location) .. (#warnings > 0 and '\n警告：\n' .. table.concat(warnings, '\n') or ''),
         (failedCount > 0 or #warnings > 0) and 'warning' or 'info')
-    -- No deletion or mutation of originals/renders: Lightroom owns temporary cleanup.
+    -- Only SDK-generated renditions are transferred; originals remain read-only.
 end
 
 return provider

@@ -3,6 +3,22 @@ local normalizer = assert(dependencies.normalizer)
 local metadataResolver = assert(dependencies.metadataResolver)
 local Resolver = {}
 local textTokens = { Camera = 'camera', Lens = 'lens', FilmSim = 'filmSim' }
+-- Display names follow fphoto-renamer; canonical metadata IDs remain untouched.
+local filmSimNames = {
+    PROVIA = 'PROVIA', VELVIA = 'Velvia', ASTIA = 'ASTIA',
+    PRO_NEG_STD = 'PRO Neg Std', PRO_NEG_HI = 'PRO Neg Hi',
+    CLASSIC_CHROME = 'CLASSIC CHROME', CLASSIC_NEGATIVE = 'CLASSIC Neg',
+    ETERNA = 'ETERNA', ETERNA_BLEACH_BYPASS = 'ETERNA BLEACH BYPASS',
+    NOSTALGIC_NEG = 'NOSTALGIC Neg', REALA_ACE = 'REALA ACE',
+    MONOCHROME = 'MONOCHROME', MONOCHROME_R = 'MONOCHROME+ R FILTER',
+    MONOCHROME_Y = 'MONOCHROME+ Ye FILTER', MONOCHROME_G = 'MONOCHROME+ G FILTER',
+    ACROS = 'ACROS', ACROS_R = 'ACROS+ R FILTER', ACROS_Y = 'ACROS+ Ye FILTER',
+    ACROS_G = 'ACROS+ G FILTER', SEPIA = 'SEPIA',
+}
+local function formatTokenValue(value)
+    local words = value:gsub('[ \t\r\n\v\f]+', ' '):match('^ *(.-) *$')
+    return (words:gsub(' ', '-'))
+end
 local function failure(code, message, token)
     return nil, { code = code, message = message, token = token }
 end
@@ -52,6 +68,7 @@ function Resolver.resolve(parsed, metadata, options)
         if parsed.tokens[token] then
             local value = metadata[field]
             if value ~= nil and type(value) ~= 'string' then return failure('InvalidTokenValue', '文字列の項目が必要です。', token) end
+            if token == 'FilmSim' and value then value = filmSimNames[value] or value end
             values[token] = hasText(value) and value or ''
         end
     end
@@ -91,6 +108,7 @@ function Resolver.resolve(parsed, metadata, options)
         else
             local value = values[segment.name]
             if value == nil then return failure('InvalidTemplate', '未解決のトークンがあります。', segment.name) end
+            value = formatTokenValue(value)
             local empty = value == ''
             if empty and segment.name ~= 'LensMaker' then missing[segment.name] = true end
             if empty and segment.name == 'LensMaker' and not makers.LensMaker then missing.LensMaker = true end

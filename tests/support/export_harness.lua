@@ -48,7 +48,7 @@ local function newHarness(options)
                 if options.cancelDuringCreate then state.cancelRequested = true end
                 return true
             end,
-            copy = function(source, destination)
+            move = function(source, destination)
                 state.copies[#state.copies + 1] = { source, destination }
                 -- Emulate the documented no-overwrite contract, including a late collision.
                 if options.race then files[destination] = 'file' end
@@ -57,6 +57,7 @@ local function newHarness(options)
                 if options.partialFailure then files[destination] = 'file'; return false, 'Partial failure' end
                 if options.copyFailure then return false, 'Permission denied' end
                 files[destination] = 'file'
+                files[source] = nil
                 return true
             end,
         },
@@ -121,6 +122,7 @@ local function newHarness(options)
         },
         waitForRender = function()
             state.waits = state.waits + 1
+            if not options.missingRender then files[rendered] = 'file' end
             if options.removeBaseDuringRender then files['/output'] = nil end
             if options.renderException then error('Render exception') end
             if options.cancelDuringRender then state.cancelAfterRender = true end

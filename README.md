@@ -28,6 +28,8 @@ Adobe Lightroom Classic の写真書き出し時に、ExifTool で XMP / RAW / J
 20261008_123456_FUJIFILM_X-H2S_FUJIFILM_XF100-400mm.jpg
 ```
 
+各トークン値の連続空白はハイフンでつなぎ、大文字・小文字は保持します。例：`XF200mm  F2 R LM OIS WR` → `XF200mm-F2-R-LM-OIS-WR`。FilmSim は `CLASSIC_NEGATIVE` → `CLASSIC-Neg`、`PRO_NEG_STD` → `PRO-Neg-Std` 等に表示変換します。
+
 利用できるトークンと欠落時の扱いは [トークン仕様](docs/tokens.md) を参照してください。元画像を変更せず、既存出力も暗黙に上書きしません。
 
 ## Phase 1 の検証記録（旧版）
@@ -47,7 +49,7 @@ SDK 宣言の最低バージョンは 11.0 です。これは確認済みの Cla
 
 プラグインを再読み込みし、「ファイル（またはライブラリ）→ プラグインエクストラ → メタデータ取得 / 入力ファイル探索を検証…」から「ExifTool でメタデータ取得」を選び、検証用 ExifTool 実行ファイルと写真を選びます。今回は `/opt/homebrew/bin/exiftool` で macOS ネイティブ読み取りを検証しました。macOS の Lightroom 内でも、ユーザーが同じ XMP の FilmSim 取得成功を確認しています。
 
-メニューが出ない場合は、プラグインマネージャーでパスがこのリポジトリの `src/FujiPhotoRenamer.lrplugin/`、表示名が「Fuji Photo Renamer — 開発検証版」、バージョンが `0.8.1.18` であることを確認します。「プラグイン作成者ツール」から再読み込みし、改善しなければ Lightroom Classic を再起動してください。
+メニューが出ない場合は、プラグインマネージャーでパスがこのリポジトリの `src/FujiPhotoRenamer.lrplugin/`、表示名が「Fuji Photo Renamer — 開発検証版」、バージョンが `0.8.3.20` であることを確認します。「プラグイン作成者ツール」から再読み込みし、改善しなければ Lightroom Classic を再起動してください。
 
 XMP の FilmSim は、既知の Lightroom Look / CameraProfile に対応します（例：Camera PROVIA/Standard → PROVIA）。未知のプロファイルは未取得として扱います。
 
@@ -55,7 +57,7 @@ XMP の FilmSim は、既知の Lightroom Look / CameraProfile に対応しま�
 
 ## Phase 3 の探索確認
 
-プラグインを再読み込みし、バージョン `0.8.1.18` を確認します。「ファイル（またはライブラリ）→ プラグインエクストラ → メタデータ取得 / 入力ファイル探索を検証…」で「XMP / RAW / JPG の探索」を選び、元 JPG / JPEG / RAF / DNG を選びます。3 モードの探索結果を表示し、ExifTool は実行しません。
+プラグインを再読み込みし、バージョン `0.8.3.20` を確認します。「ファイル（またはライブラリ）→ プラグインエクストラ → メタデータ取得 / 入力ファイル探索を検証…」で「XMP / RAW / JPG の探索」を選び、元 JPG / JPEG / RAF / DNG を選びます。3 モードの探索結果を表示し、ExifTool は実行しません。
 
 RAF / DNG と XMP の拡張子は大小文字不問、stem は完全一致です。複数候補は推測で選ばずエラーにします。原画像の書き込み、メタデータの読取・マージ、書き出しへの統合は行いません。macOS の探索診断の基本動作はユーザー報告で確認済みです。[Phase 3 の仕様・確認手順](docs/phase3-metadata-sources.md)
 
@@ -83,7 +85,7 @@ RAF / DNG と XMP の拡張子は大小文字不問、stem は完全一致です
 
 ## Phase 9 の書き出し統合
 
-1. プラグインを再読み込みして `0.8.1.18` を確認し、「Fuji Photo Renamer — 開発検証版」の書き出し画面を開く。
+1. プラグインを再読み込みして `0.8.3.20` を確認し、「Fuji Photo Renamer — 開発検証版」の書き出し画面を開く。
 2. 「ExifTool 実行ファイルを選択…」で開発用ツールを指定する。空欄の場合は同梱パスを使いますが、同梱物はまだありません。PATH は探索しません。
 3. テンプレートと標準の「書き出し場所」を設定する。C2PA 削除は OFF。
 4. 必要なら「選択中の写真でプレビューを更新」を押す。書き出しは各写真から情報を読み直し、テンプレート名で保存します。同名は `_001`、`_002` を付加します。
