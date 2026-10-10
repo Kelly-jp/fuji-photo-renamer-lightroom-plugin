@@ -124,8 +124,8 @@ test('composes template expansion, sanitization, and collision resolution withou
         { cameraMaker = 'FUJIFILM', camera = 'X-H2S', lensMaker = 'Fujifilm Corporation', lens = 'XF18/55mm: Test' },
         { original = 'DSCF1234', extension = 'jpg' }))
     local safe = assert(sanitizer.sanitize(expanded.filename))
-    equal(safe.filename, 'FUJIFILM_X-H2S_XF18_55mm_ Test_DSCF1234.jpg')
+    equal(safe.filename, 'FUJIFILM_X-H2S_XF18_55mm_-Test_DSCF1234.jpg')
     equal(assert(resolve(safe.filename, { existingNames = { safe.filename } })).filename,
-        'FUJIFILM_X-H2S_XF18_55mm_ Test_DSCF1234_001.jpg')
+        'FUJIFILM_X-H2S_XF18_55mm_-Test_DSCF1234_001.jpg')
 end)
 print(string.format('%d Phase 7 pure-core tests passed.', count))

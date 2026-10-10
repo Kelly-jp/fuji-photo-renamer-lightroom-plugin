@@ -115,4 +115,44 @@ test('uses only collision suffixes across repeated independent exports', functio
     equal(h.copies[2][2], '/output/DSCF1234_001.jpg')
     equal(h.copies[3][2], '/output/DSCF1234_002.jpg')
 end)
+test('uses formatted lens and film display names in actual saves', function()
+    local h = newHarness { metadata = { lens = 'XF200mm  F2 R LM  OIS WR', filmSim = 'PRO_NEG_HI' } }
+    h.settings.fprTemplate = '{Lens}_{FilmSim}_{Original}'
+    h.run(); equal(h.copies[1][2], '/output/XF200mm-F2-R-LM-OIS-WR_PRO-Neg-Hi_DSCF1234.jpg')
+end)
+test('transfers a rendition rendered into the final folder without leaving the original name', function()
+    local h = newHarness { rendered = '/output/DSCF1234.jpg' }; h.run()
+    equal(#h.errors, 0); equal(h.files['/output/test_DSCF1234.jpg'], 'file')
+    equal(h.files['/output/DSCF1234.jpg'], nil); equal(h.files['/original/DSCF1234.RAF'], 'file')
+end)
+test('accepts the owned SDK output when it already has the final name', function()
+    local h = newHarness { rendered = '/output/DSCF1234.jpg' }; h.settings.fprTemplate = '{Original}'
+    h.run(); equal(#h.errors, 0); equal(#h.copies, 0)
+    equal(h.files['/output/DSCF1234.jpg'], 'file'); equal(h.files['/output/DSCF1234_001.jpg'], nil)
+end)
+test('preserves existing output while transferring a rendition from the final folder', function()
+    local h = newHarness { rendered = '/output/DSCF1234.jpg', extraFiles = { ['/output/test_DSCF1234.jpg'] = 'file' } }
+    h.run(); equal(#h.errors, 0); equal(h.files['/output/test_DSCF1234.jpg'], 'file')
+    equal(h.files['/output/test_DSCF1234_001.jpg'], 'file'); equal(h.files['/output/DSCF1234.jpg'], nil)
+end)
+test('preserves final destination across repeated update callbacks without opening a dialog', function()
+    local h = newHarness { useSubfolder = true, subfolder = 'exports' }
+    h.provider.updateExportSettings(h.settings); h.provider.updateExportSettings(h.settings)
+    equal(h.settings.phase1Destination.kind, 'specificFolder'); equal(h.settings.phase1Destination.path, '/output')
+    equal(h.settings.phase1Destination.useSubfolder, true); equal(h.settings.phase1Destination.subfolder, 'exports')
+    h.run(); equal(h.copies[1][2], '/output/exports/test_DSCF1234.jpg')
+end)
+test('rejects cached temporary settings without an original destination', function()
+    local h = newHarness(); h.settings.phase1Destination = nil
+    local ok, message = pcall(h.provider.updateExportSettings, h.settings)
+    equal(ok, false); assert(message:find('保存先を復元', 1, true)); equal(#h.copies, 0)
+end)
+test('does not read a fresh SDK JPEG discovered next to its RAW as source metadata', function()
+    local paths = { raw = 'raw', jpeg = 'rendered' }
+    local reader, calls = pipeline(paths, { raw = { camera = 'X-H2S' }, rendered = { camera = 'Wrong source' } })
+    local result = assert(reader.read('/photo.RAF', 'same_then_parent', '/exiftool', nil,
+        function(path) return path == 'rendered' end))
+    equal(#calls, 1); equal(result.paths.jpeg, nil); equal(result.metadata.camera, 'X-H2S')
+    equal(paths.jpeg, 'rendered')
+end)
 print(string.format('%d Phase 9 pipeline tests passed.', count))

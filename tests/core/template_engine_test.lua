@@ -68,7 +68,7 @@ test('keeps different manufacturers', function()
 end)
 test('compares unknown manufacturers through normalized keys', function()
     local data = metadata(); data.cameraMaker = ' Acme Labs '; data.lensMaker = 'ACME   LABS'
-    equal(render('{CameraMaker}_{LensMaker}_{Original}', data).filename, 'Acme Labs_DSCF1234.jpg')
+    equal(render('{CameraMaker}_{LensMaker}_{Original}', data).filename, 'Acme-Labs_DSCF1234.jpg')
 end)
 test('does not suppress a standalone LensMaker token', function()
     equal(render('{LensMaker}').filename, 'FUJIFILM.jpg')
@@ -146,4 +146,35 @@ for _, token in ipairs { 'ISO', 'FocalLength', 'Sequence' } do
         equal(parsed, nil); equal(err.code, 'UnknownToken')
     end)
 end
+test('formats whitespace inside tokens while preserving case and literal separators', function()
+    local data = metadata()
+    data.camera = '  X-H2S  Body  '; data.lens = '  XF200mm  F2\t R LM   OIS WR  '
+    local result = render('{Camera}__ literal -  {Lens}_{Original}', data, { original = 'My   Photo.v2' })
+    equal(result.filename, 'X-H2S-Body__ literal -  XF200mm-F2-R-LM-OIS-WR_My-Photo.v2.jpg')
+    equal(data.camera, '  X-H2S  Body  '); equal(data.lens, '  XF200mm  F2\t R LM   OIS WR  ')
+end)
+test('preserves existing punctuation and meaningful underscores in token values', function()
+    local data = metadata(); data.lens = 'XF100-400mm__F4.5-5.6  R +  TC'
+    equal(render('{Lens}', data).filename, 'XF100-400mm__F4.5-5.6-R-+-TC.jpg')
+end)
+for id, expected in pairs {
+    PROVIA = 'PROVIA', VELVIA = 'Velvia', ASTIA = 'ASTIA',
+    PRO_NEG_STD = 'PRO-Neg-Std', PRO_NEG_HI = 'PRO-Neg-Hi',
+    CLASSIC_CHROME = 'CLASSIC-CHROME', CLASSIC_NEGATIVE = 'CLASSIC-Neg',
+    ETERNA = 'ETERNA', ETERNA_BLEACH_BYPASS = 'ETERNA-BLEACH-BYPASS',
+    NOSTALGIC_NEG = 'NOSTALGIC-Neg', REALA_ACE = 'REALA-ACE',
+    MONOCHROME = 'MONOCHROME', MONOCHROME_R = 'MONOCHROME+-R-FILTER',
+    MONOCHROME_Y = 'MONOCHROME+-Ye-FILTER', MONOCHROME_G = 'MONOCHROME+-G-FILTER',
+    ACROS = 'ACROS', ACROS_R = 'ACROS+-R-FILTER', ACROS_Y = 'ACROS+-Ye-FILTER',
+    ACROS_G = 'ACROS+-G-FILTER', SEPIA = 'SEPIA',
+} do
+    test('renders a Rust-compatible film display name: ' .. id, function()
+        local data = metadata(); data.filmSim = id
+        equal(render('{FilmSim}', data).filename, expected .. '.jpg'); equal(data.filmSim, id)
+    end)
+end
+test('does not infer a simulation from an unrelated canonical model value', function()
+    local data = metadata(); data.filmSim = 'Custom  Profile'
+    equal(render('{FilmSim}', data).filename, 'Custom-Profile.jpg')
+end)
 print(string.format('%d Phase 6 pure-core tests passed.', count))

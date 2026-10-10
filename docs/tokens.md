@@ -6,7 +6,7 @@
 
 テンプレートはファイル名だけを扱います。`/`、`\`、制御文字によるパス指定は拒否します。拡張子は実際の出力形式から必ず自動付加します。Extension トークンは廃止しました。実際のファイル形式と不一致の拡張子をユーザー文字列で指定できません。
 
-## 初期トークン
+## 対応トークン
 
 | トークン | 元になる値 | 表示規則 / 例 | 欠落時 |
 | --- | --- | --- | --- |
@@ -79,3 +79,26 @@ CollisionResolver の比較キーは統合境界で試行名・予約名の完�
 ## Sequence の廃止（2026-10-10）
 
 現在の対応トークンは Date / Time / DateTime / Original / CameraMaker / Camera / LensMaker / Lens / FilmSim の9個です。Sequence はユーザー指示により廃止しました。通常は name.jpg、衝突したときだけ name_001.jpg / name_002.jpg とします。旧 UI 設定の末尾 `{Sequence}` とその直前の _ / - / スペース1文字だけは取り除きます。その他の位置はエラーとし、`{{Sequence}}` は文字として保持します。
+
+## トークン値のハイフン表記（2026-10-10）
+
+ユーザー指示により、各トークン値の前後空白を除き、連続する ASCII 空白類（スペース、タブ、改行等）を1つの区切りへ整理して `-` に変換します。大文字・小文字は保持します。Original、カメラ・レンズ・メーカー名にも適用します。テンプレートに直接書いた `_`、スペース、ハイフンや、値にもともと含まれる数字・記号・アンダースコアは一括変更しません。Date / Time / DateTime の既存書式も維持します。元 Metadata と元画像は変更しません。
+
+例：`XF200mm  F2 R LM   OIS WR` → `XF200mm-F2-R-LM-OIS-WR`。`{CameraMaker}_{Lens}` の `_` はトークン間の区切りとして残ります。
+
+FilmSim は ExifTool 境界の正規化済み ID を、[Rust 版の表示名規則](https://github.com/Kelly-jp/fphoto-renamer/blob/fd706e4ebf29a5f0a2c8afba471190d115d3765d/crates/core/src/exif_reader.rs) に対応付けてからハイフン化します。内部 ID・採用元・優先順位は変更せず、タグ名や未確認コードの推測を TokenResolver へ持ち込みません。
+
+| 内部 ID | ファイル名での表記 |
+| --- | --- |
+| PROVIA / VELVIA / ASTIA | PROVIA / Velvia / ASTIA |
+| PRO_NEG_STD / PRO_NEG_HI | PRO-Neg-Std / PRO-Neg-Hi |
+| CLASSIC_CHROME / CLASSIC_NEGATIVE | CLASSIC-CHROME / CLASSIC-Neg |
+| ETERNA / ETERNA_BLEACH_BYPASS | ETERNA / ETERNA-BLEACH-BYPASS |
+| NOSTALGIC_NEG / REALA_ACE | NOSTALGIC-Neg / REALA-ACE |
+| MONOCHROME / ACROS / SEPIA | MONOCHROME / ACROS / SEPIA |
+| MONOCHROME_R / MONOCHROME_Y / MONOCHROME_G | MONOCHROME+-R-FILTER / MONOCHROME+-Ye-FILTER / MONOCHROME+-G-FILTER |
+| ACROS_R / ACROS_Y / ACROS_G | ACROS+-R-FILTER / ACROS+-Ye-FILTER / ACROS+-G-FILTER |
+
+比較用に既知メーカーを正規化する従来の規則と、FilmSim の表示名変換は、この空白整形に先立って適用します。未知の内部文字列を既知 FilmSim と推測せず、既存の読取境界での未知コード欠落・警告を維持します。
+
+参照日は2026-10-10。指定された develop の取得コードと上記固定コミットのバイト列を照合済みです。exif_reader.rs の SHA-256 は `e7b46acd65bf41ee557e01ec90e5338295a611758cdd76530a8d0ab678da8091`。文字列表示規則を本プロジェクトの Lua で実装し、RAW 読取・部分一致・任意プロファイルの推測ロジックは移植していません。

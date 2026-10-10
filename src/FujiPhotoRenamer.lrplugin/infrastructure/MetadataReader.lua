@@ -1,9 +1,14 @@
 local context = assert(..., 'MetadataReader requires infrastructure and core dependencies')
 local scanner, reader, resolver = assert(context.scanner), assert(context.reader), assert(context.resolver)
 local Reader = {}
-function Reader.read(originalPath, mode, executablePath, isCanceled)
+function Reader.read(originalPath, mode, executablePath, isCanceled, isRenderedSource)
     local paths, scanError = scanner.resolve(originalPath, mode)
     if not paths then return nil, scanError end
+    local inputPaths = {}
+    for kind, path in pairs(paths) do
+        if not isRenderedSource or not isRenderedSource(path) then inputPaths[kind] = path end
+    end
+    paths = inputPaths
     local sources, warnings = {}, {}
     for _, kind in ipairs { 'xmp', 'raw', 'jpeg' } do
         if isCanceled and isCanceled() then return nil, { code = 'Canceled', message = 'キャンセルされました。' } end

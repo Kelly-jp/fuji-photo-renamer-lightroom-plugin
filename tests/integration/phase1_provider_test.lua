@@ -51,7 +51,7 @@ end)
 test('preserves Unicode, spaces, and dots in the source stem', function()
     local h = newHarness { original = '/original/写真 sample.v2.JPG' }
     h.run()
-    assertEqual(h.copies[1][2], '/output/test_写真 sample.v2.jpg')
+    assertEqual(h.copies[1][2], '/output/test_写真-sample.v2.jpg')
 end)
 
 for _, case in ipairs {
@@ -243,7 +243,7 @@ for _, case in ipairs { { 'folder selection canceled', {} }, { 'folder selection
 end
 
 test('rejects unsupported destinations', function()
-    local h = newHarness { destinationType = 'tempFolder' }
+    local h = newHarness { destinationType = 'unsupported' }
     h.run()
     assertEqual(#h.errors, 1)
     assertEqual(#h.copies, 0)
