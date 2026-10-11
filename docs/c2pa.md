@@ -25,7 +25,7 @@ ExifTool 公式資料は、対応する JPEG などの JUMBF グループを `-j
 5. JUMBF が残る、読み取れない、対象外情報が壊れた場合は失敗として確定保存しない。
 6. 成功時だけ衝突を避けて出力先へ保存する。
 
-以下は複製した検証用ファイルだけで使うコマンド例です。現段階で実行・同梱はしていません。実装時の引数・バックアップ方針は技術検証で固定します。
+以下は複製した検証用ファイルだけで使うコマンド例です。以下は初期検討の例です。現行の実装は Phase 10 の -o による新規出力方式を参照してください。
 
 ```sh
 exiftool -jumbf:all -G3 -b -j -u -struct staged-export.jpg
@@ -45,3 +45,7 @@ exiftool -jumbf:all= staged-export.jpg
 ## Phase 9 の統合状態
 
 C2PA OFF の JPEG 保存だけを接続しました。ON は削除未実装のため書き出しを拒否します。書き出しファイルの C2PA / JUMBF は変更せず、元画像群への削除命令も追加しません。削除の作業コピーと所有追跡は Phase 10 の責務です。
+
+## Phase 10 の実装
+
+ExifToolの `-o <専用作業フォルダー>/cleaned.jpg -jumbf:all=` で処理済みの新規コピーを作ります。`-overwrite_original`は使わず、元RAW/JPG/XMP・SDKレンダリング入力もExifToolからは変更しません。SDK由来を確認したハンドル、source内容と参照先、JPEG非JUMBF領域の全バイト比較、削除後JSONを確認し、成功したコピーだけを保存します。入力不変と実JPEGの画素一致を確認済みですが、今回のLightroom実機経路は未確認です。[仕様・制約・手動ゲート](phase10-c2pa.md)

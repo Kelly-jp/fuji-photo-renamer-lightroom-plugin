@@ -7,3 +7,5 @@
 - `phase2-lightroom-profile.xmp` / `phase2-lightroom-look.xmp`: 自作の CRS プロファイル検証用 sidecar。CameraProfile と構造内 Look Name の取得・優先順位を確認します。
 
 本プロジェクトの MIT License を適用します。ExifTool の出力形式確認には 13.55 を使用しました。読取テストは JPEG / XMP の前後バイト列不変を確認します。個人の画像やメタデータをこのディレクトリへ追加しないでください。
+
+Phase 10のJUMBF入りJPEGはtests/support/jumbf_fixture.luaで合成します。c2paラベルを持つ最小ボックスと分割APP11を追加した検証用構造で、有効な署名・信頼チェーンを持つC2PA文書ではありません。実JPEGの検証は明示指定した許諾済みコピーを読み取り専用で使い、Gitに含めません。

@@ -16,5 +16,5 @@ return {
     },
     LrExportMenuItems = diagnosticMenuItems,
     LrLibraryMenuItems = diagnosticMenuItems,
-    VERSION = { major = 0, minor = 8, revision = 3, build = 20 },
+    VERSION = { major = 0, minor = 9, revision = 0, build = 21 },
 }

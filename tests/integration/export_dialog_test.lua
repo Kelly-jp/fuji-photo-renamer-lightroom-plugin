@@ -75,13 +75,13 @@ end
 for _, values in ipairs { { fprRawSearchMode = 'recursive' }, { fprOmitDuplicateManufacturer = 'ON' }, { fprRemoveC2pa = 1 } } do
     test('blocks corrupt preset values', function() local props = start(values); assert(type(props.LR_cantExportBecause) == 'string') end)
 end
-test('stores C2PA ON but blocks export until removal is implemented', function()
+test('stores C2PA ON and allows verified export processing', function()
     local props = start(); props.fprRemoveC2pa = true
-    assert(props.LR_cantExportBecause:find('未実装', 1, true)); equal(props.fprRemoveC2pa, true)
+    equal(props.LR_cantExportBecause, nil); equal(props.fprRemoveC2pa, true)
     props.fprRemoveC2pa = false; equal(props.LR_cantExportBecause, nil)
 end)
 test('restoring an ON preset never silently turns C2PA off', function()
-    local props = start { fprRemoveC2pa = true }; equal(props.fprRemoveC2pa, true); assert(props.LR_cantExportBecause)
+    local props = start { fprRemoveC2pa = true }; equal(props.fprRemoveC2pa, true); equal(props.LR_cantExportBecause, nil)
 end)
 test('declares immediate edits, read-only preview and all RAW choices', function()
     local props = start(); local edit = findControl(props, 'fprTemplate'); equal(edit.immediate, true)
@@ -115,11 +115,10 @@ test('declares only scalar settings for Lightroom preset storage', function()
     equal(preset.fprPreview, nil); equal(preset.fprPreviewStatus, nil); equal(preset.LR_cantExportBecause, nil)
     local restored = start(preset); equal(restored.fprPreview, 'X-H2S.jpg'); equal(restored.fprOmitDuplicateManufacturer, false)
 end)
-test('checks unsupported C2PA before modifying export settings', function()
+test('preserves enabled C2PA in export settings', function()
     local settings = { fprRemoveC2pa = true, LR_export_destinationType = 'sourceFolder' }
-    local ok, message = pcall(provider.updateExportSettings, settings)
-    equal(ok, false); assert(message:find('未実装', 1, true))
-    equal(settings.LR_export_destinationType, 'sourceFolder'); equal(settings.phase1Destination, nil)
+    provider.updateExportSettings(settings)
+    equal(settings.fprRemoveC2pa, true); equal(settings.LR_export_destinationType, 'tempFolder')
 end)
 test('blocks invalid templates for programmatic export too', function()
     local ok = pcall(provider.updateExportSettings, { fprTemplate = '{Unknown}' }); equal(ok, false)
@@ -133,7 +132,7 @@ test('preserves custom settings while directing actual export to temporary JPEG'
     equal(settings.LR_export_destinationType, 'tempFolder'); equal(settings.LR_format, 'JPEG')
 end)
 test('clears only this provider export blocker when switching services', function()
-    local props = start { fprRemoveC2pa = true }
+    local props = start { fprTemplate = '{Unknown}' }
     assert(props.LR_cantExportBecause)
     provider.endDialog(props, 'changedServiceProvider'); equal(props.LR_cantExportBecause, nil)
     provider.startDialog(props); props.LR_cantExportBecause = 'Another provider reason'

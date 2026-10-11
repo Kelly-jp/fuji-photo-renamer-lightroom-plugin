@@ -7,6 +7,7 @@ local work = os.tmpname(); assert(os.remove(work)); assert(sdk.LrFileUtils.creat
 local function read(path) local f = assert(io.open(path, 'rb')); local data = f:read('*a'); f:close(); return data end
 local function write(path, data) local f = assert(io.open(path, 'wb')); assert(f:write(data)); assert(f:close()) end
 local jpeg = read(root .. '/fixtures/metadata/phase2-sample.jpg')
+local jumbfFixture = assert(loadfile('tests/support/jumbf_fixture.lua'))()
 local xmp = read(root .. '/fixtures/metadata/phase2-lightroom-look.xmp')
 write(work .. '/sample.jpg', jpeg); write(work .. '/sample.xmp', xmp)
 assert(sdk.LrFileUtils.createAllDirectories(work .. '/output'))
@@ -14,6 +15,11 @@ local context = { fileUtils = sdk.LrFileUtils, pathUtils = sdk.LrPathUtils, task
     pluginPath = root .. '/src/FujiPhotoRenamer.lrplugin', platform = 'macos' }
 local function loadModule(name, deps) return assert(loadfile(context.pluginPath .. '/' .. name))(deps) end
 local copied = {}
+local originalDelete = sdk.LrFileUtils.delete
+sdk.LrFileUtils.delete = function(path)
+    if path == work .. '/render.jpg' then return os.remove(path) end
+    return originalDelete(path)
+end
 sdk.LrFileUtils.move = function(source, destination)
     if sdk.LrFileUtils.exists(destination) then return false, 'Destination exists' end
     -- Test-only transfer under a private temp directory; race behavior is covered by the SDK boundary double.
@@ -30,12 +36,12 @@ _G.import = function(name) return assert(sdk[name], name) end
 local provider = assert(loadfile(context.pluginPath .. '/ExportServiceProvider.lua'))()
 local count = 0
 local function test(name, callback) callback(); count = count + 1; print('PASS ' .. name) end
-local function export(template, directPath)
-    local settings = { fprExifToolPath = executable, fprTemplate = template,
+local function export(template, directPath, removeC2pa, renderedData)
+    local settings = { fprExifToolPath = executable, fprTemplate = template, fprRemoveC2pa = removeC2pa or false,
         LR_export_destinationType = 'specificFolder', LR_export_destinationPathPrefix = work .. '/output' }
     local renderedPath = directPath or work .. '/render.jpg'
     assert(not sdk.LrFileUtils.exists(renderedPath), 'Refusing to overwrite an existing test file')
-    write(renderedPath, jpeg)
+    write(renderedPath, renderedData or jpeg)
     provider.updateExportSettings(settings)
     local failures, emitted = {}, false
     local progress = { isCanceled = function() return false end, cancel = function() error('Unexpected cancel') end }
@@ -43,7 +49,7 @@ local function export(template, directPath)
         propertyTable = settings, configureProgress = function() return progress end,
         renditions = function() return function()
             if emitted then return end; emitted = true
-            return 1, { photo = { getRawMetadata = function(_, key) assert(key == 'path'); return work .. '/sample.jpg' end },
+            return 1, { type = function() return 'LrExportRendition' end, destinationPath = renderedPath, photo = { getRawMetadata = function(_, key) assert(key == 'path'); return work .. '/sample.jpg' end },
                 waitForRender = function() return true, renderedPath end,
                 uploadFailed = function(_, message) failures[#failures + 1] = message end }
         end end,
@@ -90,6 +96,16 @@ test('keeps an SDK rendition already at the final name as one output', function(
     assert(#copied == before and read(final) == jpeg)
     assert(not sdk.LrFileUtils.exists(work .. '/output/sample_001.jpg'))
     assert(os.remove(final))
+end)
+test('C2PA ON removes JUMBF before final save', function()
+    export('c2pa-on_{Original}', nil, true, jumbfFixture.add(jpeg))
+    assert(read(work .. '/output/c2pa-on_sample.jpg') == jpeg)
+    assert(not sdk.LrFileUtils.exists(work .. '/render.jpg'))
+end)
+test('C2PA OFF preserves all original rendition bytes', function()
+    local input = jumbfFixture.add(jpeg)
+    export('c2pa-off_{Original}', nil, false, input)
+    assert(read(work .. '/output/c2pa-off_sample.jpg') == input)
 end)
 test('keeps original JPEG XMP byte-identical and transfers the SDK render', function()
     assert(read(work .. '/sample.jpg') == jpeg and read(work .. '/sample.xmp') == xmp and not sdk.LrFileUtils.exists(work .. '/render.jpg'))

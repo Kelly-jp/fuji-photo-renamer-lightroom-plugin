@@ -18,6 +18,9 @@ local sanitizer = loadModule('core/FilenameSanitizer.lua')
 local tokens = loadModule('core/TokenResolver.lua', { normalizer = normalizer, metadataResolver = metadataResolver })
 local context = { fileUtils = LrFileUtils, pathUtils = LrPathUtils, tasks = LrTasks, pluginPath = _PLUGIN.path,
     platform = WIN_ENV and 'windows' or MAC_ENV and 'macos' or nil }
+context.artifacts = loadModule('infrastructure/ExportArtifact.lua', {
+    fileUtils = LrFileUtils, pathUtils = LrPathUtils, integrity = loadModule('core/JpegIntegrity.lua'),
+})
 local reader = loadModule('ExifToolLoader.lua', context)
 local metadataReader = loadModule('infrastructure/MetadataReader.lua', {
     scanner = loadModule('infrastructure/MetadataSourceResolver.lua', context), reader = reader, resolver = metadataResolver,
@@ -40,6 +43,6 @@ context.collisions = loadModule('core/CollisionResolver.lua', { sanitizer = sani
 return loadModule('lightroom/ExportServiceProvider.lua', {
     dialogs = LrDialogs, fileUtils = LrFileUtils, pathUtils = LrPathUtils, tasks = LrTasks,
     parser = parser, tokens = tokens, sanitizer = sanitizer, ui = exportDialog,
-    reader = reader, metadataReader = metadataReader,
+    reader = reader, metadataReader = metadataReader, artifacts = context.artifacts,
     fileSystem = loadModule('infrastructure/FileSystem.lua', context),
 })

@@ -94,9 +94,30 @@ local function saveRendition(rendition, destination, progressScope, settings, se
     if not candidate then return false, tokenError.message end
     local safe, safetyError = context.sanitizer.sanitize(candidate.filename)
     if not safe then return false, safetyError.message end
-    local path, saveError = context.fileSystem.save(renderedPath, safe.filename, destination, originalPath,
-        metadata.paths, progressScope, session)
-    if not path then return false, saveError end
+    if not settings.fprRemoveC2pa then
+        local path, saveError = context.fileSystem.save(renderedPath, safe.filename, destination, originalPath,
+            metadata.paths, progressScope, session)
+        if not path then return false, saveError end
+        return true, table.concat(metadata.warnings, '\n')
+    end
+    local artifact, artifactError = context.artifacts.capture(rendition, renderedPath, originalPath, metadata.paths)
+    if not artifact then return false, artifactError.code .. '：' .. artifactError.message end
+    local ok, saved, message = LrTasks.pcall(function()
+        local prepared, prepareError = context.reader.prepareC2pa(artifact, { executablePath = settings.executablePath })
+        if not prepared then return false, prepareError.code .. '：' .. prepareError.message end
+        if progressScope:isCanceled() then return false, 'C2PA 削除後にキャンセルされました。' end
+        local stage, stageError = context.artifacts.commitPath(artifact)
+        if not stage then return false, stageError.code .. '：' .. stageError.message end
+        local path, saveError = context.fileSystem.save(stage, safe.filename, destination, originalPath,
+            metadata.paths, progressScope, session)
+        if not path then return false, saveError end
+        return true
+    end)
+    if not ok then saved, message = false, tostring(saved) end
+    local cleanupOk, warnings = LrTasks.pcall(context.reader.releaseC2pa, artifact)
+    if not cleanupOk then warnings = { '作業コピーの清掃に失敗しました：' .. tostring(warnings) } end
+    for _, warning in ipairs(warnings) do metadata.warnings[#metadata.warnings + 1] = warning end
+    if not saved then return false, (message or 'C2PA 削除に失敗しました。') .. (#warnings > 0 and '\n' .. table.concat(warnings, '\n') or '') end
     return true, table.concat(metadata.warnings, '\n')
 end
 

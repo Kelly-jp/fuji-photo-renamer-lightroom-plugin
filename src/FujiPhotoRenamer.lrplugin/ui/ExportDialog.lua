@@ -42,9 +42,6 @@ end
 function Dialog.cannotExportBecause(properties)
     local filename, message = Dialog.preview(properties)
     if not filename then return message end
-    if setting(properties, 'fprRemoveC2pa') then
-        return 'C2PA / Content Credentials の削除処理は未実装です。OFF にすると検証用 JPEG を書き出せます。'
-    end
 end
 
 local function migrateTemplate(properties)
@@ -167,8 +164,8 @@ function Dialog.sections(f, properties)
                 if paths and paths[1] then properties.fprExifToolPath = paths[1] end
             end },
             f:checkbox { title = 'カメラメーカーとレンズメーカーが同じ場合は、レンズメーカーを省略する', value = bind 'fprOmitDuplicateManufacturer' },
-            f:checkbox { title = '書き出し JPEG の C2PA / Content Credentials を削除する', value = bind 'fprRemoveC2pa', 'fprExifToolPath' },
-            f:static_text { title = '削除処理は未実装です。ON の間は書き出せません。実装後は新しい書き出し JPEG の来歴と他の JUMBF 情報を除去し、元 RAW / JPG / XMP は変更しません。', width_in_chars = 65, height_in_lines = -1 },
+            f:checkbox { title = '書き出し JPEG の C2PA / Content Credentials を削除する', value = bind 'fprRemoveC2pa' },
+            f:static_text { title = 'ON の場合、新しい書き出し JPEG の作業コピーから来歴と他の JUMBF 情報を除去します。元 RAW / JPG / XMP は変更しません。削除・画像保持の検証に失敗した写真は保存しません。', width_in_chars = 65, height_in_lines = -1 },
             f:static_text { title = bind 'fprExportStatus', width_in_chars = 65, height_in_lines = -1 },
             f:static_text { title = '同名時は _001、_002 を付加し、既存ファイルを上書きしません。「このカタログに追加」とスタックへの追加は適用しません。', width_in_chars = 65, height_in_lines = -1 },
         },
