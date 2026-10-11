@@ -28,6 +28,21 @@ test('preserves unrelated APP11 segments', function()
     local app = '\255\235\0\10not-jumb'; local input = jpeg:sub(1, 2) .. app .. jpeg:sub(3)
     equal(assert(integrity.inspect(input)).withoutJumbf, input)
 end)
+for _, metadata in ipairs {
+    { 'EXIF', 225, 'Exif\0\0fixture' },
+    { 'XMP', 225, 'http://ns.adobe.com/xap/1.0/\0<x:xmpmeta>fixture</x:xmpmeta>' },
+    { 'ICC', 226, 'ICC_PROFILE\0\1\1fixture' },
+} do
+    test('retains ' .. metadata[1] .. ' bytes and rejects any change during removal', function()
+        local length = #metadata[3] + 2
+        local segment = string.char(255, metadata[2], math.floor(length / 256), length % 256) .. metadata[3]
+        local original = jpeg:sub(1, 2) .. segment .. jpeg:sub(3)
+        equal(assert(integrity.verifyRemoval(fixture.add(original), original)).removedSegments, 1)
+        local changed = original:sub(1, 6) .. 'X' .. original:sub(8)
+        local result, err = integrity.verifyRemoval(fixture.add(original), changed)
+        equal(result, nil); equal(err.code, 'JpegChanged')
+    end)
+end
 for _, input in ipairs { '', 'not JPEG', '\255\216\255', '\255\216\255\235\0\255x', jpeg:sub(1, -3) } do
     test('rejects malformed JPEG', function() local result, err = integrity.inspect(input); equal(result, nil); equal(err.code, 'InvalidJpeg') end)
 end
