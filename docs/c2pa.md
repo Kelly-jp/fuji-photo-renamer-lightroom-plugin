@@ -48,4 +48,4 @@ C2PA OFF の JPEG 保存だけを接続しました。ON は削除未実装の�
 
 ## Phase 10 の実装
 
-ExifToolの `-o <専用作業フォルダー>/cleaned.jpg -jumbf:all=` で処理済みの新規コピーを作ります。`-overwrite_original`は使わず、元RAW/JPG/XMP・SDKレンダリング入力もExifToolからは変更しません。SDK由来を確認したハンドル、source内容と参照先、JPEG非JUMBF領域の全バイト比較、削除後JSONを確認し、成功したコピーだけを保存します。入力不変と実JPEGの画素一致を確認済みですが、今回のLightroom実機経路は未確認です。[仕様・制約・手動ゲート](phase10-c2pa.md)
+ExifToolの `-o <専用作業フォルダー>/cleaned.jpg -jumbf:all=` で処理済みの新規コピーを作ります。`-overwrite_original`は使わず、元RAW/JPG/XMP・SDKレンダリング入力もExifToolからは変更しません。SDK由来を確認したハンドル、source内容と参照先、JPEG非JUMBF領域の全バイト比較、削除後JSONを確認し、成功したコピーだけを保存します。実JPEGコピーの入力不変と画素一致を確認済みで、macOSのLightroom内でも削除・表示保持・前回設定の書き出しが確認報告済みです。今回の元画像群の前後ハッシュ比較とWindows実機は未確認です。[仕様・制約・手動ゲート](phase10-c2pa.md)

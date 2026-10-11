@@ -4,6 +4,8 @@
 
 ### Added
 
+- Phase 11の必須ケース対応表・手動Integration Testと、Python標準ライブラリによるテスト一括実行を追加。所有確認、メタデータ統合境界、EXIF/XMP/ICC保持、C2PA削除後の保存失敗を補い、Lua 622件と実行補助14件を検証。
+
 - Phase 10のC2PA/JUMBF削除をJPEG限定で追加。SDK由来の所有ハンドルから新規作業出力を作り、独立JPEG保持検証とExifTool再読取の成功後だけ保存。
 - JPEG core検証、合成・実JPEGコピーのネイティブ検証、ON/OFF・失敗・キャンセルの回帰とADRを追加。元画像は変更せず、実JPEGの非JUMBFバイト・画素・入力SHA-256不変を確認。
 

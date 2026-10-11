@@ -2,7 +2,7 @@
 
 ## 対象と現在の作業範囲
 
-Adobe Lightroom Classic 専用の写真書き出しプラグインです。Lua / Lightroom Classic SDK を使い、Windows / macOS に対応します。ExifTool は配布物へ同梱します。ユーザーの指示により Phase 10 の C2PA / JUMBF 削除を実装しています。Phase 1 の macOS 基本経路と Phase 2 の XMP FilmSim 取得は確認報告済みです。Phase 10 の結果報告後は作業を止め、次の指示なしに Phase 11 以降を実装しないでください。
+Adobe Lightroom Classic 専用の写真書き出しプラグインです。Lua / Lightroom Classic SDK を使い、Windows / macOS に対応します。ExifTool は配布物へ同梱します。ユーザーの指示により Phase 11 のテスト整備を進めています。Phase 10 の macOS 削除・画像保持・前回設定の書き出しは確認報告済みです。Windows 実機は環境がなく保留です。Phase 11 の結果報告後は作業を止め、次の指示なしに Phase 12 を実装しないでください。
 
 ## 構成と設計の基準
 
@@ -15,7 +15,7 @@ Adobe Lightroom Classic 専用の写真書き出しプラグインです。Lua /
 
 ## 開発・検証
 
-Phase 1 / 2 / 3 / 4 / 5 / 6 / 7 / 8 / 9 / 10 のテストは Lua 5.1 で実行します。Phase 2 のネイティブテストには macOS の POSIX 対応 Lua と明示した検証用 ExifTool を使います。コマンドは README を参照してください。ビルド・Lint の自動化は未導入です。`git status --short`、`git diff`、`git diff --check` で差分を確認します。未導入のコマンドを実行可能として記載しないでください。Lua 5.1 互換を維持し、製品版のテストランナー・整形ツールは必要性を確認してから選定します。SDK のダブルを使ったテストを Lightroom 内の実機確認と呼ばないでください。第三者 Lua コードは `third_party/dependencies.json` の版・公式ハッシュを固定し、ライセンスと原版のバイト列を維持します。
+Phase 1〜11 の Lua テストは Lua 5.1 で実行します。`scripts/run-tests.py` は Python 3 標準ライブラリだけの開発用実行補助で、ファイルごとに独立したプロセスを使います。core / sdk / native を分け、native は macOS と明示した ExifTool を必要とします。失敗や未実行を成功扱いせず、新規 Lua テストはスイート一覧へ登録してください。コマンドは README、対応表と手動 Integration Test は `docs/phase11-testing.md` を参照してください。ビルド・Lint の自動化は未導入です。`git status --short`、`git diff`、`git diff --check` で差分を確認します。Lua 5.1 互換を維持し、SDK のダブルを使ったテストを Lightroom 内の実機確認と呼ばないでください。第三者 Lua コードは `third_party/dependencies.json` の版・公式ハッシュを固定し、ライセンスと原版のバイト列を維持します。
 
 実装時のインデントはスペース 4 個、モジュール名は `TemplateParser.lua` のように PascalCase、関数・変数は camelCase を基本とします。コメントは設計理由を説明します。テストは `tests/core/*_test.lua` の命名を予定し、正常系、欠落、不正入力、衝突、外部処理失敗を独立して検証します。詳細は `docs/testing.md` に従ってください。
 

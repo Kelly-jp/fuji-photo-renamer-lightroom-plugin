@@ -168,4 +168,12 @@ for _, options in ipairs { { c2paError = true }, { cancelC2pa = true }, { commit
         equal(h.files['/original/DSCF1234.RAF'], 'file')
     end)
 end
+for _, options in ipairs { { copyFailure = true }, { partialFailure = true }, { copyException = true } } do
+    test('reports a final transfer failure after C2PA removal and releases its work copy', function()
+        local h = newHarness(options); h.settings.fprRemoveC2pa = true; h.run()
+        equal(#h.errors, 1); equal(h.releases, 1); equal(h.c2paCalls, 1)
+        equal(h.files['/original/DSCF1234.RAF'], 'file'); equal(h.files['/temporary/c2pa-clean.jpg'], nil)
+        if options.partialFailure then equal(h.files['/output/test_DSCF1234.jpg'], 'file') end
+    end)
+end
 print(string.format('%d Phase 9 pipeline tests passed.', count))

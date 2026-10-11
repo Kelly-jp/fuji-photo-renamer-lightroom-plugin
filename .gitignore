@@ -21,6 +21,8 @@ Desktop.ini
 *.log
 luac.out
 *.luac
+__pycache__/
+*.pyc
 
 # Third-party payloads are assembled for distribution, not committed
 /src/FujiPhotoRenamer.lrplugin/vendor/

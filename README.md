@@ -2,7 +2,7 @@
 
 Adobe Lightroom Classic の写真書き出し時に、ExifTool で XMP / RAW / JPG のメタデータを取得し、ユーザー指定のテンプレートに従って出力ファイルを命名するプラグインです。
 
-**Phase 10まで実装済みです。書き出しテンプレートによるJPEG保存、XMP → RAW → JPGの項目別統合、メーカー省略、禁止文字整形、衝突時の別名化を接続しました。ExifToolは開発用パスを指定します。初期プレビューはサンプルで、選択中の写真から更新できます。C2PA/JUMBF削除は新規の作業コピーだけに適用し、実JPEGコピーで検証しました。Phase 10のLightroom実機確認と自己完結した配布は未完了です。**
+**Phase 10の機能とPhase 11のテスト整備まで完了しています。書き出しテンプレートによるJPEG保存、XMP → RAW → JPGの項目別統合、メーカー省略、禁止文字整形、衝突時の別名化を接続しました。ExifToolは開発用パスを指定します。初期プレビューはサンプルで、選択中の写真から更新できます。C2PA/JUMBF削除・画像保持・前回設定の書き出しはmacOSで確認報告済みです。元画像の今回の前後ハッシュ比較とWindows実機は未確認、自己完結した配布はPhase 12へ残します。**
 
 ## 対象と機能
 
@@ -100,7 +100,22 @@ RAF / DNG と XMP の拡張子は大小文字不問、stem は完全一致です
 
 1. [要件](docs/requirements.md) と [アーキテクチャ](docs/architecture.md) を読む。
 2. [技術検証項目](docs/testing.md#技術検証項目) の未確認事項を確認する。
-3. Phase 10 の Lightroom 内での削除 ON/OFF・画像保持・元画像保護と残課題を記録し、次フェーズの指示を待つ。
+3. [Phase 11 のテスト対応表と手動確認](docs/phase11-testing.md) を読み、未検証事項を確認する。Phase 12 は次の指示を待つ。
+
+### テスト一式の実行
+
+Python 3、Lua / luac 5.1 を用意します。外部Pythonパッケージは不要です。macOSで実ExifToolも含める場合は、リポジトリのルートで次を実行します。
+
+```sh
+python3 scripts/run-tests.py --exiftool /absolute/path/to/exiftool
+python3 tests/run_tests_test.py
+```
+
+LuaがPATH上にない場合は `--lua /absolute/path/to/lua --luac /absolute/path/to/luac` を指定します。ExifTool不要の純coreだけは `--suite core`、SDK境界だけは `--suite sdk`、macOSの実ExifTool連携だけは `--suite native --exiftool /absolute/path/to/exiftool` で実行できます。SDK境界テストはLightroom実機テストではありません。
+
+`--shuffle-seed 11` で実行順を再現可能に入れ替えます。各ファイルは別プロセスで動き、失敗・時間超過・成功要約の欠落は非ゼロ終了になります。既定の各プロセス上限は180秒です。個人写真は自動探索せず、必須スイートは合成素材だけを使います。許諾済み実写真の任意確認は従来の個別コマンドで行います。
+
+### 個別のLuaテスト
 
 プラグインは Lightroom 内で実行します。ビルドや Lint の自動化はありません。Lua 5.1 の実行環境を用意した場合、リポジトリのルートで以下を実行できます（Lua 本体は配布物に同梱しません）。
 
@@ -108,6 +123,8 @@ RAF / DNG と XMP の拡張子は大小文字不問、stem は完全一致です
 lua -v
 luac -p src/FujiPhotoRenamer.lrplugin/Info.lua src/FujiPhotoRenamer.lrplugin/ExportServiceProvider.lua
 lua tests/core/jpeg_integrity_test.lua
+lua tests/integration/export_artifact_test.lua
+lua tests/integration/metadata_reader_test.lua
 lua tests/integration/c2pa_native_test.lua /absolute/path/to/exiftool
 lua tests/integration/export_pipeline_test.lua
 lua tests/integration/export_preview_test.lua
@@ -159,6 +176,7 @@ fuji-photo-renamer-lightroom-plugin/
 │   ├── phase8-export-dialog.md
 │   ├── phase9-export-integration.md
 │   ├── phase10-c2pa.md
+│   ├── phase11-testing.md
 │   └── adr/0001-c2pa-private-output.md
 ├── src/
 │   └── FujiPhotoRenamer.lrplugin/
@@ -178,10 +196,11 @@ fuji-photo-renamer-lightroom-plugin/
 │       └── lightroom/
 ├── tests/
 │   ├── core/
-│   └── integration/
+│   ├── integration/
+│   └── run_tests_test.py
 ├── fixtures/
 │   └── metadata/
-└── scripts/
+└── scripts/run-tests.py
 ```
 
 空ディレクトリは `.gitkeep` で保持します。製品版の推奨ファイル配置は [設計](docs/architecture.md#推奨ファイル配置) に記載しています。ルートの provider は SDK の登録入口で、Phase 9 の処理は lightroom/ 配下に委譲します。
@@ -207,6 +226,7 @@ fuji-photo-renamer-lightroom-plugin/
 | [Phase 8](docs/phase8-export-dialog.md) | 書き出し設定・サンプルプレビュー・プリセット宣言 |
 | [Phase 9](docs/phase9-export-integration.md) | 実写真の取得・テンプレート保存・非上書き境界・実写真プレビュー |
 | [Phase 10](docs/phase10-c2pa.md) | C2PA削除・作業出力の所有・JPEG保持検証 |
+| [Phase 11](docs/phase11-testing.md) | 必須ケース対応表・一括実行・手動Integration Test・残課題 |
 
 ## ライセンス・公式資料
 

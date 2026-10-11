@@ -74,14 +74,19 @@ test('loads the registered entry and previews selected metadata through actual E
     provider.endDialog(props); selectedPhoto = nil
 end)
 test('reads actual XMP JPEG and exports the merged edited FilmSim', function()
+    local before = #copied
     export('{DateTime}_{CameraMaker}_{FilmSim}_{Original}')
-    assert(copied[1] == work .. '/output/20261008_123456_FUJIFILM_CLASSIC-Neg_sample.jpg')
-    assert(read(copied[1]) == jpeg)
+    assert(copied[before + 1] == work .. '/output/20261008_123456_FUJIFILM_CLASSIC-Neg_sample.jpg')
+    assert(read(copied[before + 1]) == jpeg)
 end)
 test('keeps an existing output and writes a numbered collision copy', function()
-    local before = read(copied[1]); export('{DateTime}_{CameraMaker}_{FilmSim}_{Original}')
-    assert(copied[2] == work .. '/output/20261008_123456_FUJIFILM_CLASSIC-Neg_sample_001.jpg')
-    assert(read(copied[1]) == before and read(copied[2]) == jpeg)
+    -- Create this case's existing output here; do not depend on a previous test's save.
+    export('collision_{DateTime}_{CameraMaker}_{FilmSim}_{Original}')
+    local existing = copied[#copied]; local before = read(existing)
+    export('collision_{DateTime}_{CameraMaker}_{FilmSim}_{Original}')
+    local numbered = copied[#copied]
+    assert(numbered == work .. '/output/collision_20261008_123456_FUJIFILM_CLASSIC-Neg_sample_001.jpg')
+    assert(read(existing) == before and read(numbered) == jpeg)
 end)
 test('transfers a standard-name rendition from the output folder without leaving a second file', function()
     local ordinary = work .. '/output/ordinary.jpg'
