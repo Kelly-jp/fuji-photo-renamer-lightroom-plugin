@@ -53,8 +53,8 @@ test('fails without deleting a partial copy', function()
     local h = newHarness { partialFailure = true }; h.run()
     equal(#h.errors, 1); equal(h.files['/output/test_DSCF1234.jpg'], 'file')
 end)
-for _, options in ipairs { { missingTool = true }, { remove = true }, { toolException = true } } do
-    test('stops unsupported C2PA or missing ExifTool before rendering', function()
+for _, options in ipairs { { missingTool = true }, { toolException = true } } do
+    test('stops missing or invalid ExifTool before rendering', function()
         local h = newHarness(options); if options.remove then h.settings.fprRemoveC2pa = true end
         h.run(); equal(h.waits, 0); equal(#h.copies, 0); equal(h.messages[1][3], 'critical')
     end)
@@ -155,4 +155,17 @@ test('does not read a fresh SDK JPEG discovered next to its RAW as source metada
     equal(#calls, 1); equal(result.paths.jpeg, nil); equal(result.metadata.camera, 'X-H2S')
     equal(paths.jpeg, 'rendered')
 end)
+test('invokes C2PA preparation only when ON', function()
+    local h = newHarness(); h.settings.fprRemoveC2pa = true; h.run()
+    equal(h.c2paCalls, 1); equal(h.releases, 1); equal(#h.errors, 0)
+    equal(h.copies[1][1], '/temporary/c2pa-clean.jpg')
+    local off = newHarness(); off.run(); equal(off.c2paCalls, nil)
+end)
+for _, options in ipairs { { c2paError = true }, { cancelC2pa = true }, { commitError = true } } do
+    test('never publishes a failed, canceled, or changed C2PA artifact', function()
+        local h = newHarness(options); h.settings.fprRemoveC2pa = true; h.run()
+        equal(#h.copies, 0); equal(#h.errors, 1); equal(h.releases, 1)
+        equal(h.files['/original/DSCF1234.RAF'], 'file')
+    end)
+end
 print(string.format('%d Phase 9 pipeline tests passed.', count))

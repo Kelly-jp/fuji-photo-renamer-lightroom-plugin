@@ -17,4 +17,5 @@ return loadChunk('infrastructure/ExifTool.lua') {
     json = json,
     pluginPath = context.pluginPath,
     platform = context.platform,
+    artifacts = context.artifacts,
 }

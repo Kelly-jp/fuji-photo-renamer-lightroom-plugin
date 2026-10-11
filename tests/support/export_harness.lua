@@ -97,7 +97,29 @@ local function newHarness(options)
             if options.toolException then error('Path check exception') end
             if options.missingTool then return nil, { code = 'ExecutableMissing', message = 'Missing tool' } end
             return '/test/exiftool'
-        end },
+        end,
+            prepareC2pa = function(cap, settings)
+                state.c2paCalls = (state.c2paCalls or 0) + 1
+                assert(settings.executablePath == '/test/exiftool')
+                if options.c2paError then return nil, { code = 'C2paVerificationFailed', message = 'Verification failed' } end
+                files['/temporary/c2pa-clean.jpg'] = 'file'
+                if options.cancelC2pa then state.cancelRequested = true end
+                return { artifact = cap }
+            end,
+            releaseC2pa = function()
+                state.releases = (state.releases or 0) + 1
+                files['/temporary/c2pa-clean.jpg'] = nil
+                return {}
+            end,
+        },
+        artifacts = {
+            capture = function() return {} end,
+            commitPath = function()
+                if options.commitError then return nil, { code = 'ArtifactRejected', message = 'Changed render' } end
+                files[rendered] = nil
+                return '/temporary/c2pa-clean.jpg'
+            end,
+        },
         metadataReader = { read = function(path, mode, executable, cancel)
             state.reads = (state.reads or 0) + 1
             state.lastRead = { path = path, mode = mode, executable = executable }

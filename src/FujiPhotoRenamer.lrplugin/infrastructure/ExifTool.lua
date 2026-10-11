@@ -255,6 +255,41 @@ function ExifTool.resolveExecutablePath(options)
     return path
 end
 
+local function runWork(executablePath, pluginPath, workDirectory, timeoutSeconds, arguments)
+    local command, commandError = ExifTool.buildCommand(executablePath, pluginPath, workDirectory, timeoutSeconds, context.platform)
+    if not command then return nil, commandError end
+    local handle, openError = io.open(LrPathUtils.child(workDirectory, 'arguments.txt'), 'wb')
+    if not handle then return failure('ArgumentFileError', tostring(openError)) end
+    local written, writeError = handle:write(arguments)
+    local closed, closeError = handle:close()
+    if not written or not closed then return failure('ArgumentFileError', tostring(writeError or closeError)) end
+    local shellCode = LrTasks.execute(command)
+    local statusPath = LrPathUtils.child(workDirectory, 'exit-code.txt')
+    if LrFileUtils.exists(statusPath) ~= 'file' then return failure('RunnerError', '終了コードを取得できません。', { shellCode = shellCode }) end
+    local exitCode = tonumber(LrFileUtils.readFile(statusPath))
+    if LrFileUtils.exists(LrPathUtils.child(workDirectory, 'process-running.txt')) then
+        return failure('ProcessNotStopped', 'ExifTool の終了を確認できません。', { exitCode = exitCode, workDirectory = workDirectory })
+    end
+    if LrFileUtils.exists(LrPathUtils.child(workDirectory, 'timed-out.txt')) then
+        if context.platform == 'windows' and exitCode ~= 124 then
+            return failure('ProcessNotStopped', '時間上限後の終了を確認できません。', { exitCode = exitCode, workDirectory = workDirectory })
+        end
+        return failure('Timeout', 'ExifTool の実行時間が上限を超えました。', { exitCode = 124 })
+    end
+    local output, stderr = '', ''
+    for _, name in ipairs { 'stdout.json', 'stderr.txt' } do
+        local path = LrPathUtils.child(workDirectory, name)
+        if LrFileUtils.exists(path) == 'file' then
+            if (LrFileUtils.fileAttributes(path).fileSize or 0) > maxOutputBytes then return failure('OutputLimit', 'ExifTool 出力が上限を超えています。') end
+            if name == 'stdout.json' then output = LrFileUtils.readFile(path) else stderr = LrFileUtils.readFile(path) end
+        elseif name == 'stdout.json' then return failure('OutputMissing', 'ExifTool 出力がありません。') end
+    end
+    if exitCode ~= 0 or shellCode ~= 0 then
+        return failure('ProcessFailed', 'ExifTool の処理に失敗しました。', { exitCode = exitCode, shellCode = shellCode, stderr = stderr, stdout = output })
+    end
+    return { stdout = output, stderr = stderr, exitCode = exitCode }
+end
+
 local function readMetadata(inputPath, options)
     options = options or {}
     if type(options) ~= 'table' then return failure('InvalidOptions', '設定はテーブルで指定してください。') end
@@ -279,61 +314,22 @@ local function readMetadata(inputPath, options)
     local executionAttempted = false
     local executionFinished = false
     local ok, result, readError = LrTasks.pcall(function()
-        local command, commandError = ExifTool.buildCommand(executablePath, pluginPath, workDirectory, timeoutSeconds, platform)
-        if not command then return nil, commandError end
-        local handle, openError = io.open(LrPathUtils.child(workDirectory, 'arguments.txt'), 'wb')
-        if not handle then return failure('ArgumentFileError', tostring(openError)) end
-        local written, writeError = handle:write(arguments)
-        local closed, closeError = handle:close()
-        if not written or not closed then return failure('ArgumentFileError', tostring(writeError or closeError)) end
         executionAttempted = true
-        local shellCode = LrTasks.execute(command)
+        local output, processError = runWork(executablePath, pluginPath, workDirectory, timeoutSeconds, arguments)
         executionFinished = true
-        local statusPath = LrPathUtils.child(workDirectory, 'exit-code.txt')
-        if LrFileUtils.exists(statusPath) ~= 'file' then
-            return failure('RunnerError', 'ExifTool の終了コードを取得できません。', { shellCode = shellCode })
-        end
-        local exitCode = tonumber(LrFileUtils.readFile(statusPath))
-        if LrFileUtils.exists(LrPathUtils.child(workDirectory, 'process-running.txt')) then
-            return failure('ProcessNotStopped', 'ExifTool の終了を確認できません。作業ファイルを残します。',
-                { exitCode = exitCode, workDirectory = workDirectory })
-        end
-        if LrFileUtils.exists(LrPathUtils.child(workDirectory, 'timed-out.txt')) then
-            if platform == 'windows' and exitCode ~= 124 then
-                return failure('ProcessNotStopped', '時間上限後の終了を確認できません。作業ファイルを残します。',
-                    { exitCode = exitCode, workDirectory = workDirectory })
-            end
-            return failure('Timeout', 'ExifTool の実行時間が上限を超えました。', { exitCode = 124 })
-        end
-        local errorPath = LrPathUtils.child(workDirectory, 'stderr.txt')
-        local stderr = ''
-        if LrFileUtils.exists(errorPath) == 'file' then
-            if (LrFileUtils.fileAttributes(errorPath).fileSize or 0) > maxOutputBytes then
-                return failure('OutputLimit', 'ExifTool のエラー出力が上限を超えています。')
-            end
-            stderr = LrFileUtils.readFile(errorPath)
-        end
-        if exitCode ~= 0 or shellCode ~= 0 then
-            local failedOutput = LrPathUtils.child(workDirectory, 'stdout.json')
-            if LrFileUtils.exists(failedOutput) == 'file'
-                and (LrFileUtils.fileAttributes(failedOutput).fileSize or 0) <= maxOutputBytes then
-                local _, outputError = ExifTool.decodeMetadata(LrFileUtils.readFile(failedOutput), inputPath)
+        if not output then
+            if processError.code == 'ProcessFailed' and processError.stdout then
+                local _, outputError = ExifTool.decodeMetadata(processError.stdout, inputPath)
                 if outputError and outputError.code == 'MetadataError' then
-                    stderr = stderr .. (stderr == '' and '' or '\n') .. outputError.message
+                    processError.stderr = processError.stderr .. (processError.stderr == '' and '' or '\n') .. outputError.message
                 end
             end
-            return failure('ProcessFailed', 'ExifTool のメタデータ取得に失敗しました。',
-                { exitCode = exitCode, shellCode = shellCode, stderr = stderr })
+            return nil, processError
         end
-        local outputPath = LrPathUtils.child(workDirectory, 'stdout.json')
-        if LrFileUtils.exists(outputPath) ~= 'file' then return failure('OutputMissing', 'JSON 出力がありません。') end
-        if (LrFileUtils.fileAttributes(outputPath).fileSize or 0) > maxOutputBytes then
-            return failure('OutputLimit', 'ExifTool の JSON 出力が上限を超えています。')
-        end
-        local decoded, jsonError = ExifTool.decodeMetadata(LrFileUtils.readFile(outputPath), inputPath)
+        local decoded, jsonError = ExifTool.decodeMetadata(output.stdout, inputPath)
         if not decoded then return nil, jsonError end
-        decoded.exitCode = exitCode
-        if stderr:find('%S') then decoded.warnings[#decoded.warnings + 1] = stderr end
+        decoded.exitCode = output.exitCode
+        if output.stderr:find('%S') then decoded.warnings[#decoded.warnings + 1] = output.stderr end
         return decoded
     end)
     local cleanupOk, cleanupWarnings
@@ -361,6 +357,74 @@ function ExifTool.readMetadata(inputPath, options)
     local ok, result, readError = LrTasks.pcall(readMetadata, inputPath, options)
     if not ok then return failure('SdkError', 'SDK / I/O 処理に失敗しました：' .. tostring(result)) end
     return result, readError
+end
+
+local pending = setmetatable({}, { __mode = 'k' })
+function ExifTool.prepareC2pa(cap, options)
+    options = options or {}
+    if type(options) ~= 'table' then return failure('InvalidOptions', '設定はテーブルで指定してください。') end
+    if pending[cap] then return failure('ArtifactRejected', '処理中の artifact は再利用できません。') end
+    if not context.artifacts then return failure('ArtifactRejected', '書き出し artifact の所有確認が必要です。') end
+    local source, sourceError = context.artifacts.source(cap)
+    if not source then return nil, sourceError end
+    local executable, executableError = ExifTool.resolveExecutablePath(options)
+    if not executable then return nil, executableError end
+    local work, workError = createWorkDirectory()
+    if not work then return failure('WorkDirectoryError', workError) end
+    pending[cap] = { work = work, retain = false }
+    local ok, result, err = LrTasks.pcall(function()
+        local target, targetError = context.artifacts.bindWork(cap, work)
+        if not target then return nil, targetError end
+        local args = table.concat({ '-o', target, '-jumbf:all=', '--', source }, '\n') .. '\n'
+        -- -o creates a new file; never combine it with overwrite_original (which could delete the input).
+        pending[cap].retain = true
+        local output, processError = runWork(executable, context.pluginPath, work, options.timeoutSeconds or 30, args)
+        if processError and (processError.code == 'ProcessNotStopped' or processError.code == 'RunnerError'
+            or context.platform == 'windows' and processError.exitCode == 125) then return nil, processError end
+        pending[cap].retain = false
+        if not output then return nil, processError end
+        if output.stderr:find('%S') then return failure('C2paWarning', '削除処理の警告を確認してください。', { stderr = output.stderr }) end
+        local verified, verificationError = context.artifacts.verify(cap)
+        if not verified then return nil, verificationError end
+        local readArgs = table.concat({ '-j', '-G1', '-s', '-JUMBF:all', '-Error', '-Warning', '--', target }, '\n') .. '\n'
+        pending[cap].retain = true
+        local reread, rereadError = runWork(executable, context.pluginPath, work, options.timeoutSeconds or 30, readArgs)
+        if rereadError and (rereadError.code == 'ProcessNotStopped' or rereadError.code == 'RunnerError'
+            or context.platform == 'windows' and rereadError.exitCode == 125) then return nil, rereadError end
+        pending[cap].retain = false
+        if not reread then return nil, rereadError end
+        if reread.stderr:find('%S') then return failure('C2paWarning', '削除後の読取に警告があります。', { stderr = reread.stderr }) end
+        local records, position, jsonError = json.decode(reread.stdout)
+        if jsonError or not position or reread.stdout:sub(position):find('%S')
+            or type(records) ~= 'table' or #records ~= 1 or type(records[1]) ~= 'table'
+            or type(records[1].SourceFile) ~= 'string'
+            or LrPathUtils.standardizePath(records[1].SourceFile) ~= LrPathUtils.standardizePath(target) then
+            return failure('C2paVerificationFailed', '削除後の JSON を確認できません。')
+        end
+        for key in pairs(records[1]) do
+            if key ~= 'SourceFile' then return failure('C2paVerificationFailed', 'JUMBF が残るか、削除後の読取に診断があります。') end
+        end
+        return { artifact = cap, warnings = {} }
+    end)
+    if not ok then return failure('SdkError', tostring(result), { workDirectory = work }) end
+    return result, err
+end
+function ExifTool.releaseC2pa(cap)
+    local record = pending[cap]
+    if not record then return {} end
+    if record.retain then return { '実行状態が未確定のため作業フォルダーを保持します：' .. record.work } end
+    local target = LrPathUtils.child(record.work, 'cleaned.jpg')
+    local warnings = {}
+    if LrFileUtils.exists(target) and not context.artifacts.canClean(cap, target) then
+        return { '作業コピーの参照先を確認できないため清掃せず保持します：' .. record.work }
+    end
+    if LrFileUtils.exists(target) then
+        local deleted, message = LrFileUtils.delete(target)
+        if not deleted then warnings[#warnings + 1] = tostring(message) end
+    end
+    for _, warning in ipairs(cleanup(record.work)) do warnings[#warnings + 1] = warning end
+    pending[cap] = nil; context.artifacts.forget(cap)
+    return warnings
 end
 
 return ExifTool
