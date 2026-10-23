@@ -2,20 +2,20 @@
 
 ## 対象と現在の作業範囲
 
-Adobe Lightroom Classic 専用の写真書き出しプラグインです。Lua / Lightroom Classic SDK を使い、Windows / macOS に対応します。ExifTool は配布物へ同梱します。ユーザーの指示により Phase 11 のテスト整備を進めています。Phase 10 の macOS 削除・画像保持・前回設定の書き出しは確認報告済みです。Windows 実機は環境がなく保留です。Phase 11 の結果報告後は作業を止め、次の指示なしに Phase 12 を実装しないでください。
+Adobe Lightroom Classic専用の写真書き出しプラグインです。Lua / Lightroom Classic SDKを使い、Windows x64 / macOS Apple Siliconを対象とします。Intel Macはユーザー指示により対象外です。Phase 12のExifTool同梱・OS別ZIPを実装・自動検証しました。Windows実機は環境がなく保留です。Phase 12の結果報告後は作業を止め、指示なしに公開リリースや対応範囲の拡大を行わないでください。
 
 ## 構成と設計の基準
 
 - `src/FujiPhotoRenamer.lrplugin/`: プラグイン本体。Phase 1 はルートの `Info.lua` と `ExportServiceProvider.lua`、Phase 2 は `infrastructure/ExifTool.lua`、Phase 3 は `infrastructure/MetadataSourceResolver.lua`、Phase 4〜7 は `core/MetadataResolver.lua`、`ManufacturerNormalizer.lua`、`TemplateParser.lua`、`TokenResolver.lua`、`FilenameSanitizer.lua`、`CollisionResolver.lua` と統合診断を使用します。Phase 8 は `ui/ExportDialog.lua` に UI とサンプルプレビューを分離します。Phase 9 はルート登録入口から `lightroom/ExportServiceProvider.lua` に処理を委譲し、`infrastructure/MetadataReader.lua` と `FileSystem.lua` で取得・保存を接続します。Phase 10 は `ExportArtifact.lua` に所有確認、`core/JpegIntegrity.lua` にバイト保持検証を分離し、ExifTool の新規出力だけを処理します。
 - `docs/`: 要件、設計、メタデータ解決、トークン、C2PA、配布、テストの仕様。
 - `tests/`: 単体・結合テスト。Phase 1 の SDK 境界テストと手動検証は `docs/phase1-lightroom.md` を参照。`fixtures/metadata/`: 匿名化した入力と期待結果。
-- `scripts/`: 将来の検証・配布用スクリプト。`CHANGELOG.md`: 変更履歴。
+- `scripts/`: 検証・配布用スクリプト。ExifTool/Perlの取得元・版・SHA-256は`exiftool-lock.json`に固定し、`prepare-exiftool.mjs`で検証後に準備、`package.mjs`で必要ファイルのみZIPへ組み込みます。バイナリをGitへ追加せず、`.cache/`・`build/`・`dist/`に置きます。`CHANGELOG.md`: 変更履歴。
 
 変更前に関連文書を読み、仕様変更時は文書も更新してください。KISS、YAGNI、DRY を優先します。汎用フレームワーク、DI コンテナ、将来用途だけの抽象化は追加しません。core は SDK、ExifTool、ファイル I/O に依存しない純粋な Lua 処理として設計します。
 
 ## 開発・検証
 
-Phase 1〜11 の Lua テストは Lua 5.1 で実行します。`scripts/run-tests.py` は Python 3 標準ライブラリだけの開発用実行補助で、ファイルごとに独立したプロセスを使います。core / sdk / native を分け、native は macOS と明示した ExifTool を必要とします。失敗や未実行を成功扱いせず、新規 Lua テストはスイート一覧へ登録してください。コマンドは README、対応表と手動 Integration Test は `docs/phase11-testing.md` を参照してください。ビルド・Lint の自動化は未導入です。`git status --short`、`git diff`、`git diff --check` で差分を確認します。Lua 5.1 互換を維持し、SDK のダブルを使ったテストを Lightroom 内の実機確認と呼ばないでください。第三者 Lua コードは `third_party/dependencies.json` の版・公式ハッシュを固定し、ライセンスと原版のバイト列を維持します。
+LuaテストはLua 5.1、実行補助・アーカイブ処理はPython 3標準ライブラリ、配布スクリプトはNode.js標準機能で実行します。追加のnpm / Pythonパッケージは使いません。`run-tests.py`はファイルごとに独立したプロセスを使い、core / sdk / nativeを分離します。nativeはmacOSと明示したExifToolが必要です。新規Luaテストはスイート一覧へ登録してください。コマンドはREADME、配布検証は`docs/phase12-packaging.md`を参照します。Lua 5.1互換を維持し、SDKダブルや配布CLIテストをLightroom実機の確認と呼ばないでください。第三者のライセンスと原版を保持し、取得・準備済みファイルのハッシュ不一致を無視して再取得・パッケージしません。生成物を暗黙に上書きせず、`git diff --check`等で差分を確認します。Lint・公開リリースの自動化は未導入です。
 
 実装時のインデントはスペース 4 個、モジュール名は `TemplateParser.lua` のように PascalCase、関数・変数は camelCase を基本とします。コメントは設計理由を説明します。テストは `tests/core/*_test.lua` の命名を予定し、正常系、欠落、不正入力、衝突、外部処理失敗を独立して検証します。詳細は `docs/testing.md` に従ってください。
 

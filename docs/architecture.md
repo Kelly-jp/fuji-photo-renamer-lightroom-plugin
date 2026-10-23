@@ -144,3 +144,7 @@ TokenResolver は内部の FilmSim ID を既知表示名へ変換し、展開す
 ExportArtifact は SDK の型・生成先・元写真と既知入力パスを照合し、内容スナップショットと不透明な所有ハンドルを保持します。ExifTool の削除 API はこのハンドルだけを受け付け、任意ユーザーパスへ書き込みません。-o による新規出力を独立した JpegIntegrity と ExifTool 再読取で確認します。core の検証は文字列だけを扱い、SDK / ExifTool / I/O に依存しません。
 
 元の SDK 生成 JPEG は成功検証後に所有を再確認して取り除き、処理済みコピーを既存 FileSystem で最終名へ移動します。OFF の経路は変更しません。作業コピー清掃は既知の所有ファイルだけで、停止未確認は保持します。[ADR 0001](adr/0001-c2pa-private-output.md)
+
+## Phase 12 の配布境界
+
+配布の取得・SHA-256検証・OS依存の組立はNode.js、アーカイブの安全な展開とZIP生成はPython標準ライブラリに分離します。プラグインの読取・命名・保存APIは変更せず、既存の同梱パスへ実行依存を配置します。macOSはユーザー指示によりApple Silicon専用です。Macランチャーだけが同梱PerlとExifToolを起動し、coreへランタイム・OS依存を持ち込みません。[ADR 0002](adr/0002-bundled-exiftool.md)

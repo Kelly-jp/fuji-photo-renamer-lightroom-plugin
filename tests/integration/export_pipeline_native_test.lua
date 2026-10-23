@@ -1,7 +1,8 @@
 -- Actual ExifTool and file reads/writes through a test SDK adapter, not Lightroom rendering.
 package.path = './?.lua;' .. package.path
 local pipe = assert(io.popen('pwd')); local root = pipe:read('*l'); assert(pipe:close())
-local sdk = require('tests.support.lightroom_native').install(root .. '/src/FujiPhotoRenamer.lrplugin')
+local pluginPath = arg[2] or root .. '/src/FujiPhotoRenamer.lrplugin'
+local sdk = require('tests.support.lightroom_native').install(pluginPath)
 local executable = assert(arg[1], 'Pass an explicit ExifTool path')
 local work = os.tmpname(); assert(os.remove(work)); assert(sdk.LrFileUtils.createAllDirectories(work))
 local function read(path) local f = assert(io.open(path, 'rb')); local data = f:read('*a'); f:close(); return data end
@@ -12,7 +13,7 @@ local xmp = read(root .. '/fixtures/metadata/phase2-lightroom-look.xmp')
 write(work .. '/sample.jpg', jpeg); write(work .. '/sample.xmp', xmp)
 assert(sdk.LrFileUtils.createAllDirectories(work .. '/output'))
 local context = { fileUtils = sdk.LrFileUtils, pathUtils = sdk.LrPathUtils, tasks = sdk.LrTasks,
-    pluginPath = root .. '/src/FujiPhotoRenamer.lrplugin', platform = 'macos' }
+    pluginPath = pluginPath, platform = 'macos' }
 local function loadModule(name, deps) return assert(loadfile(context.pluginPath .. '/' .. name))(deps) end
 local copied = {}
 local originalDelete = sdk.LrFileUtils.delete
@@ -37,7 +38,7 @@ local provider = assert(loadfile(context.pluginPath .. '/ExportServiceProvider.l
 local count = 0
 local function test(name, callback) callback(); count = count + 1; print('PASS ' .. name) end
 local function export(template, directPath, removeC2pa, renderedData)
-    local settings = { fprExifToolPath = executable, fprTemplate = template, fprRemoveC2pa = removeC2pa or false,
+    local settings = { fprExifToolPath = arg[2] and '' or executable, fprTemplate = template, fprRemoveC2pa = removeC2pa or false,
         LR_export_destinationType = 'specificFolder', LR_export_destinationPathPrefix = work .. '/output' }
     local renderedPath = directPath or work .. '/render.jpg'
     assert(not sdk.LrFileUtils.exists(renderedPath), 'Refusing to overwrite an existing test file')
@@ -58,7 +59,7 @@ local function export(template, directPath, removeC2pa, renderedData)
 end
 test('loads the registered entry and previews selected metadata through actual ExifTool', function()
     local props = assert(loadfile('tests/support/observable_properties.lua'))() {
-        fprTemplate = '{FilmSim}_{Original}', fprExifToolPath = executable,
+        fprTemplate = '{FilmSim}_{Original}', fprExifToolPath = arg[2] and '' or executable,
     }
     provider.startDialog(props)
     selectedPhoto = { getRawMetadata = function(_, key) assert(key == 'path'); return work .. '/sample.jpg' end }
