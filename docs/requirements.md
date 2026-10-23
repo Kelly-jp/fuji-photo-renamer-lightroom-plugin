@@ -114,3 +114,7 @@ F-08をJPEG限定で実装しました。既定OFF、ONは新規の処理済み�
 ## Phase 11 の限定範囲
 
 現行9トークンと衝突時だけの番号付与を基準に、必須ケースを既存自動テストへ対応付け、所有確認・保持・統合境界の不足を補いました。テストを独立プロセスで実行する開発用補助と手動Integration Testを分離します。製品仕様の追加・変更、ExifTool同梱・ZIP生成は行いません。Windows実機は環境がなく保留で、対応済みとは宣言しません。[Phase 11](phase11-testing.md)
+
+## Phase 12 の限定範囲
+
+ExifTool 13.59と取得元・SHA-256を固定し、Windows x64公式ペイロードと、macOS用のPerl 5.44.0 / ExifToolをOS別ZIPへ同梱します。ユーザー指示によりmacOSはApple Silicon専用とし、Intel Macは対象外です。ライセンス・通知・ソース入手先・準備済み全ファイルのハッシュを保持し、バイナリをGitへ追加しません。既存生成物は上書き拒否です。Windows実機・クリーン環境・署名/公証等はリリース判定に残します。[Phase 12](phase12-packaging.md)

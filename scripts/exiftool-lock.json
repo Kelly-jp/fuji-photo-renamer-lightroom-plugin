@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "exiftoolVersion": "13.59",
+  "perlVersion": "5.44.0",
+  "verifiedOn": "2026-10-11",
+  "sources": {
+    "exiftool": {
+      "filename": "Image-ExifTool-13.59.tar.gz",
+      "url": "https://downloads.sourceforge.net/project/exiftool/Image-ExifTool-13.59.tar.gz",
+      "sha256": "668ea3acececb7235fbd0f4900e72d5f12c9b07e5c778fd36cb1e9b5828fd65a",
+      "checksumUrl": "https://exiftool.org/checksums-13.59.txt"
+    },
+    "windows": {
+      "filename": "exiftool-13.59_64.zip",
+      "url": "https://downloads.sourceforge.net/project/exiftool/exiftool-13.59_64.zip",
+      "sha256": "44b512b25af500724ba579d0a53c8fc5851628b692dd5e5d94ae4a15c2cba9ec",
+      "checksumUrl": "https://exiftool.org/checksums-13.59.txt"
+    },
+    "perl": {
+      "filename": "perl-5.44.0.tar.gz",
+      "url": "https://www.cpan.org/src/5.0/perl-5.44.0.tar.gz",
+      "sha256": "3b855066b92491cb40e86affb1ca57d1a388aa43e51b91c7806a32c2f65f96c3",
+      "checksumUrl": "https://www.cpan.org/src/5.0/perl-5.44.0.tar.gz.sha256.txt"
+    }
+  }
+}

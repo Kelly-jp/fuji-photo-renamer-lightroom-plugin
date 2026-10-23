@@ -2,29 +2,35 @@
 
 ## 配布要件
 
-Windows / macOS とも、ユーザーによる ExifTool、Perl、Homebrew の追加インストールや PATH 設定を不要にすることを目標とします。ExifTool だけでなく必要な実行依存も配布物に含めます。配布方式は未決定で、バイナリはまだ取得・追加していません。
+Windows / macOSとも、ユーザーによるExifTool、Perl、Homebrewの追加インストールやPATH設定を不要にします。Phase 12では、公式ExifTool 13.59のWindows x64一式と、ExifToolソース＋ソースからビルドしたPerl 5.44.0のmacOS同梱方式を実装・検証します。バイナリはGitへ追加しません。生成できたことと、クリーン環境・Lightroom内で対応を確認できたことは区別します。[現在の検証・手順](phase12-packaging.md)
 
 ## OS 別の検証方針
 
 | 対象 | 公式資料で確認できたこと | 本プロジェクトでの未確認事項 |
 | --- | --- | --- |
-| Windows | 実行ファイル配布があり、`exiftool.exe` と `exiftool_files/` を一緒に配置する。 | 固定バージョンの依存一式、CPU、日本語パス、Classic からの起動、セキュリティ製品の挙動。 |
-| macOS | Perl 配布はスクリプトと `lib/` を一緒に配置する方式。通常の pkg インストール手順もある。 | OS の Perl に依存しない実行ランタイム同梱、Intel / Apple Silicon、再配布条件、署名・隔離属性。 |
+| Windows x64 | 公式ZIPの実行ファイルを`exiftool.exe`へ改名し、`exiftool_files/`をライセンスZIPも含めて保持する。 | 実機の起動・日本語パス・Classic・セキュリティ製品。公式ペイロードのPerlは5.32.1で、保守終了版の扱いと依存更新をリリース前に判断する。 |
+| macOS Apple Silicon | 同梱ランチャーがPerlとExifToolソースを絶対パスで起動する。Perlは再配置可能なライブラリ探索と静的libperlでビルドする。Intelはユーザー指示により対象外。 | クリーン環境・Classicからの同梱起動・署名/公証/隔離属性・実測した最低OS版。 |
 
 macOS の pkg を同梱するだけでは自己完結要件を満たしません。システム Perl が利用できるという前提を製品保証にしないでください。[ExifTool 公式インストール資料](https://exiftool.org/install.html)
 
-## 推奨配布物の配置（未作成）
+## 配布物の配置
 
 ```text
 FujiPhotoRenamer.lrplugin/
-├── Info.lua / core/ / infrastructure/ / ui/ / lightroom/
+├── Info.lua / ExportServiceProvider.lua / core/ / infrastructure/ / ui/ / lightroom/
 ├── vendor/
-│   ├── windows/  # exiftool.exe + exiftool_files/ + 必要依存
-│   └── macos/    # 検証済みランタイム + exiftool + lib/
-└── THIRD_PARTY_NOTICES/  # 固定した各配布物のライセンス・通知
+│   └── windows/ または macos/  # 対象OSの同梱物だけ
+├── THIRD_PARTY_NOTICES/  # 原版のライセンス・通知
+├── THIRD_PARTY_NOTICES.md
+├── third_party/dependencies.json
+├── PACKAGE_MANIFEST.json
+├── INSTALL.md
+└── LICENSE
 ```
 
-これは概念配置です。macOS のアーキテクチャ別配置は方式決定後に確定します。実行時はプラグイン位置から絶対パスで起動し、インストール先を変更しても動くようにします。プラグインディレクトリは書き込み不可でも起動できることを確認し、作業ファイルは別の専用領域に置きます。
+ZIPのトップレベルは`FujiPhotoRenamer.lrplugin/`だけです。macOSの`vendor/macos/exiftool`はランチャー、`tool/`はExifTool本体とlib、`runtime/arm64/`はPerlです。Intelランタイムは含めません。システムPerl・PATHにはフォールバックしません。作業ファイルは別の専用領域に置きます。
+
+macOS ZIPは、組立領域へコピーしたPerlと全Mach-Oモジュールを`codesign --force --sign - --timestamp=none`で個別にad-hoc署名し、厳密検証後に作成します。準備キャッシュは変更しません。manifestのハッシュは署名後のバイト列から生成し、署名対象一覧と未公証であることも記録します。Developer ID署名やGatekeeper通過を意味するものではありません。
 
 ## 取得と再現性
 
@@ -32,7 +38,7 @@ FujiPhotoRenamer.lrplugin/
 
 プロジェクトの MIT ライセンスが第三者ツールにも適用されるとみなしません。ExifTool と各ランタイムの公式配布物に含まれるライセンス、再配布・通知・ソース提供条件を確認します。Adobe SDK 本体やサンプルを無条件に再配布しません。
 
-取得物は作業用 `.cache/`、生成物は `build/` / `dist/` に置く設計です。`src/` の `vendor/` は組み立て時だけ生成し、Git 管理から除外します。現在はビルド・ダウンロードスクリプトも存在しません。
+取得物は`.cache/downloads/`、検証済み同梱物は`.cache/prepared-exiftool/`、ログ・組立領域は`build/`、ZIPとSHA-256は`dist/`へ置きます。`src/`へバイナリをコピーしません。Node.jsの準備・パッケージスクリプトとPython標準ライブラリのアーカイブ補助を使います。ダウンロード・展開の前に固定ハッシュを検証し、パッケージ前に全準備済みファイルのハッシュ・実行権限を再確認します。
 
 ## リリース判定
 
