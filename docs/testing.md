@@ -265,3 +265,9 @@ v0.10.2の失敗ログで、対象版のCHANGELOG欠落によりprepareが終了
 v0.10.3のmacOS GitHubランナーではPerlの新規configure/build/test/install、Lua 680件、実ZIP7件、解凍したプラグインの実ExifTool経路9件が成功しました。Windowsの日本語設置パスでDLL探索が失敗したため、原版バイナリを保持したままPowerShellで既存の短縮パスを利用する修正を行いました。PR #18のWindowsジョブでは日本語設置先・作業先・写真からの版取得・JPEG読取・入力不変が成功しました。8.3短縮名が使えない環境とLightroomのWindows UIは未検証です。
 
 各公式Actionの固定コミットのaction.ymlを確認し、実行ランタイムがnode24の版へ更新しました。Node.js 24のmacOSにもHTTP解析エラーが再現したため、ReleaseとWindows事前チェックの取得を共通Python標準HTTPSへ統一しました。ダウンロード回帰8件、Windowsランナー/整合性7件、Nodeリリース18件・配布20件、actionlintがローカルで成功。共通HTTPSによるRelease全体の結果はv0.10.5タグで確認します。
+
+## v0.10.5のGitHub全ジョブ成功
+
+2026-10-24、[Release実行40091716417](https://github.com/Kelly-jp/fuji-photo-renamer-lightroom-plugin/actions/runs/40091716417)が全3ジョブ成功しました。共通HTTPS取得、macOSの新規Perlビルド・標準テスト、Lua 680件、実ZIP検証と解凍済みプラグイン経路、Windows実ランナーの日本語パス検証、artifact転送、Release下書き作成を通過しました。公開はしていません。
+
+Releaseに添付された4ファイルを再取得し、新しい添付物検証関数でSHA-256・版・ノート・未公開状態を再確認しました。build / windows-smoke / releaseの全チェック注釈を取得し、Node.js 20非推奨警告がないことを確認しました。残る実機制約は`releases.md`を参照してください。
