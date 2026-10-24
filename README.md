@@ -1,250 +1,108 @@
 # fuji-photo-renamer-lightroom-plugin
 
-Adobe Lightroom Classic の写真書き出し時に、ExifTool で XMP / RAW / JPG のメタデータを取得し、ユーザー指定のテンプレートに従って出力ファイルを命名するプラグインです。
+Adobe Lightroom ClassicからJPEGを書き出す際に、撮影日時・カメラ・レンズ・フィルムシミュレーションなどを使ってファイル名を付けるプラグインです。ExifToolでXMP / RAW / JPGのメタデータを読み取り、指定したテンプレートから出力名を生成します。
 
-**Phase 12のExifTool同梱とOS別ZIP生成を実装・自動検証しました。macOSはApple Silicon専用、Windowsはx64です。ExifTool 13.59と取得元・SHA-256を固定し、macOSにはPerl 5.44.0も同梱します。macOSのネイティブコードにはパッケージ時にad-hoc署名を付けます。Developer ID署名・公証はなく、Gatekeeperの個別許可が必要になる場合があります。クリーン環境・Lightroomからの同梱起動・Windows実機には追加確認が必要です。**
+## できること
 
-## 対象と機能
+- 撮影情報のトークンを組み合わせたファイル名の設定とプレビュー。
+- XMP → RAW → JPGの順で、欠けたメタデータを項目ごとに補完。RAF / DNGを同じフォルダーや1つ上のフォルダーから探索。
+- カメラとレンズのメーカーが同じ場合に、レンズメーカーを省略。
+- `-DxO_DeepPRIME XD2s_XD`など、複数の指定文字列を元ファイル名から削除してからテンプレートを適用。
+- Lightroom標準の書き出し場所・サブフォルダー・透かし設定を利用。
+- 保存後にFinder / Explorerで表示、または指定アプリで開く。
+- 新しく書き出すJPEGだけを対象に、C2PA / Content Credentials（JUMBF）を削除するオプション（既定OFF）。
 
-- Lightroom Classic / Lua / Lightroom Classic SDK、Windows x64 / macOS Apple Silicon。Intel Macは対象外です。
-- 書き出し画面の独自設定 UI、テンプレート入力、ファイル名プレビュー。
-- XMP → RAW → JPG の順に、項目単位でメタデータを採用。
-- RAW 探索は JPG と同じ階層、1 つ上の階層、同じ階層 → 1 つ上の階層。最低限 RAF / DNG に対応。
-- カメラとレンズのメーカーが正規化後に同一なら、メーカーを一つだけ出力するオプション。
-- 書き出し JPEG の C2PA / Content Credentials（JUMBF）削除オプション。
-- ExifToolと必要な実行依存を配布物に同梱。ソース側のsrcにはバイナリを置かず、配布ZIPへ組み込みます。
+元RAW・元JPG・XMPは変更しません。同名ファイルがある場合は`_001`、`_002`を付け、既存ファイルを上書きしません。
 
-クラウド版 Lightroom、動画、公開サービスへのアップロードは対象外です。初期検証は JPEG 出力を基準とし、他形式の対応範囲は検証後に決定します。
-
-## 命名例（設計仕様）
+## ファイル名の例
 
 ```text
-{DateTime}_{CameraMaker}_{Camera}_{LensMaker}_{Lens}
+テンプレート:
+{DateTime}_{CameraMaker}_{Camera}_{LensMaker}_{Lens}_{FilmSim}_{Original}
 
-メーカー重複省略 ON:
-20261008_123456_FUJIFILM_X-H2S_XF100-400mm.jpg
-
-メーカー重複省略 OFF:
-20261008_123456_FUJIFILM_X-H2S_FUJIFILM_XF100-400mm.jpg
+出力例（同じメーカーの省略ON）:
+20261008_123456_FUJIFILM_X-H2S_XF200mm-F2-R-LM-OIS-WR_PROVIA_DSCF1234.jpg
 ```
 
-各トークン値の連続空白はハイフンでつなぎ、大文字・小文字は保持します。例：`XF200mm  F2 R LM OIS WR` → `XF200mm-F2-R-LM-OIS-WR`。FilmSim は `CLASSIC_NEGATIVE` → `CLASSIC-Neg`、`PRO_NEG_STD` → `PRO-Neg-Std` 等に表示変換します。
+拡張子は自動で付きます。トークン値の連続空白はハイフンへ変換し、英字の大文字・小文字は保持します。
 
-利用できるトークンと欠落時の扱いは [トークン仕様](docs/tokens.md) を参照してください。元画像を変更せず、既存出力も暗黙に上書きしません。
+対応トークンは`{Date}`、`{Time}`、`{DateTime}`、`{Original}`、`{CameraMaker}`、`{Camera}`、`{LensMaker}`、`{Lens}`、`{FilmSim}`です。表示形式や欠落時の扱いは[トークン仕様](docs/tokens.md)を参照してください。
 
-## Phase 1 の検証記録（旧版）
+## 動作対象
 
-以下は固定 `test_` 命名だった Phase 1 の手順です。現行版の確認は「Phase 9 の書き出し統合」を参照してください。
+- Adobe Lightroom Classic（クラウド版Lightroomは対象外）
+- macOS Apple Silicon / Windows x64（Intel Macは対象外）
+- JPEG書き出し
 
-1. Lightroom Classic の「ファイル → プラグインマネージャー → 追加」で `src/FujiPhotoRenamer.lrplugin/` を選択する。
-2. 複製した元画像を専用カタログへ登録し、書き出し先として「Fuji Photo Renamer — 開発検証版」を選ぶ。
-3. 標準の「書き出し場所」で「特定のフォルダー」または「元の写真と同じフォルダー」を選び、必要なら「サブフォルダーに保存」を指定して JPEG を書き出す。
-4. 指定先の `test_DSCF1234.jpg` のような出力と元画像のハッシュ不変を確認する。同名ファイルがある場合は失敗する。
+現在は開発検証版です。Windows実機での動作確認は未実施です。macOSの同梱ランタイムはad-hoc署名付きですが、Developer ID署名・Appleの公証はなく、Gatekeeperの個別許可が必要になる場合があります。[配布・環境ごとの検証状況](docs/phase12-packaging.md)
 
-「後でフォルダーを選択」やデスクトップ等の保存先も利用できます。同名ファイルは標準の「既存のファイル」の設定にかかわらず拒否します。この検証版ではカタログへの追加とスタック追加は適用しません。旧版からはプラグインを再読み込みし、書き出し画面を開き直してください。
+## インストールと使い方
 
-SDK 宣言の最低バージョンは 11.0 です。これは確認済みの Classic 動作バージョンを意味しません。完全な確認手順、API の出典、未解決事項は [Phase 1 検証記録](docs/phase1-lightroom.md) を参照してください。
+1. 対象OS向けのZIPを解凍し、`FujiPhotoRenamer.lrplugin/`を任意の場所に置きます。ZIPは下記の手順でビルドできます。
+2. Lightroom Classicの「ファイル → プラグインマネージャー → 追加」で、そのフォルダーを登録します。
+3. 写真の書き出し画面で「Fuji Photo Renamer — 開発検証版」を選びます。
+4. テンプレートと「書き出し場所」を設定し、必要に応じてプレビュー・メーカー省略・透かし・後処理を設定して書き出します。
 
-## Phase 2 の単体確認
+配布ZIPにはExifToolと実行に必要なランタイムを同梱します。利用者によるExifTool / Perlの追加インストールは不要です。書き出し設定のExifToolパスは空欄にしてください。
 
-プラグインを再読み込みし、「ファイル（またはライブラリ）→ プラグインエクストラ → メタデータ取得 / 入力ファイル探索を検証…」から「ExifTool でメタデータ取得」を選び、検証用 ExifTool 実行ファイルと写真を選びます。今回は `/opt/homebrew/bin/exiftool` で macOS ネイティブ読み取りを検証しました。macOS の Lightroom 内でも、ユーザーが同じ XMP の FilmSim 取得成功を確認しています。
+除外文字列は「除外文字列を編集…」から1行に1件ずつ入力し、「編集を完了」を押します。改行はMacでは **Option＋Return**、Windowsでは **Ctrl＋J** です（Windowsは実機未確認）。設定は書き出しプリセットへ保存できます。
 
-メニューが出ない場合は、プラグインマネージャーでパスがこのリポジトリの `src/FujiPhotoRenamer.lrplugin/`、表示名が「Fuji Photo Renamer — 開発検証版」、バージョンが `0.9.2.23` であることを確認します。「プラグイン作成者ツール」から再読み込みし、改善しなければ Lightroom Classic を再起動してください。
+## ビルド方法
 
-XMP の FilmSim は、既知の Lightroom Look / CameraProfile に対応します（例：Camera PROVIA/Standard → PROVIA）。未知のプロファイルは未取得として扱います。
+リポジトリのルートで実行します。Luaソースのコンパイルは不要で、ExifToolとランタイムを準備して配布ZIPを作成します。
 
-診断メニューは元画像を読み取るだけです。書き出し名は Phase 1 の固定ルールのままで、テンプレート・項目別マージにはまだ統合しません。探索は Phase 3 の単体機能です。同梱用 ExifTool ペイロードは未準備です。API、タグ、実データ結果、残課題は [Phase 2 記録](docs/phase2-exiftool.md) を参照してください。
-
-## Phase 3 の探索確認
-
-プラグインを再読み込みし、バージョン `0.9.2.23` を確認します。「ファイル（またはライブラリ）→ プラグインエクストラ → メタデータ取得 / 入力ファイル探索を検証…」で「XMP / RAW / JPG の探索」を選び、元 JPG / JPEG / RAF / DNG を選びます。3 モードの探索結果を表示し、ExifTool は実行しません。
-
-RAF / DNG と XMP の拡張子は大小文字不問、stem は完全一致です。複数候補は推測で選ばずエラーにします。原画像の書き込み、メタデータの読取・マージ、書き出しへの統合は行いません。macOS の探索診断の基本動作はユーザー報告で確認済みです。[Phase 3 の仕様・確認手順](docs/phase3-metadata-sources.md)
-
-## Phase 4 の項目単位統合
-
-共通検証メニューで「ExifTool でメタデータ取得」→「XMP → RAW → JPG を統合」を選び、検証用 ExifTool と元 JPG / RAW を指定します。関連入力を探索して読み取り、各項目の値と採用元を表示します。SDK・ExifTool に依存しない core が項目ごとに有効性を検証し、下位の入力で欠落を補います。
-
-書き出し処理への統合は行いません。メーカー比較・命名候補は後続 Phase で診断へ追加しています。[Phase 4 の仕様・手動確認](docs/phase4-metadata-merge.md)
-
-## Phase 5 のメーカー比較
-
-統合診断の末尾で、CameraMaker / LensMaker の比較キーと同一判定を確認できます。FUJIFILM の既知表記揺れ、TAMRON / SIGMA、未知メーカーの ASCII 大小文字・空白揺れに対応します。元のメタデータやファイル名は変更しません。[Phase 5 の仕様と手順](docs/phase5-manufacturers.md)
-
-## Phase 6 の命名候補
-
-同じ統合診断で、固定サンプルテンプレートのメーカー省略 ON/OFF の候補名、空欄・省略項目を表示します。拡張子は JPEG を想定します。ファイルの保存・リネームは行いません。設定 UI と任意テンプレート入力は Phase 8 に残します。[Phase 6 の仕様と手順](docs/phase6-templates.md)
-
-## Phase 7 の安全処理と衝突例
-
-統合診断で「Phase 7 整形後」と、同名があると仮定した `_001.jpg` / `_002.jpg` の候補を表示します。実保存先の探索・予約・保存は行いません。core は OS の比較規則を明示した名前配列を受け取る設計です。[Phase 7 の仕様と手順](docs/phase7-filename-safety.md)
-
-## Phase 8 の書き出し設定 UI
-
-書き出し先「Fuji Photo Renamer — 開発検証版」にテンプレート、サンプルプレビュー、RAW 探索方法、メーカー省略、C2PA 削除設定を追加しました。トークンボタンはクリックでテンプレート末尾へ追加します。拡張子は必ず自動付加します。テンプレート入力とメーカー省略でプレビューが更新され、設定は書き出しプリセット用に宣言しています。Phase 8 時点の保存名は `test_<元名>.jpg` でした。現行は Phase 9 のテンプレート保存です。Phase 8 時点は C2PA ON を拒否していましたが、現行の削除・検証は Phase 10 に接続済みです。[Phase 8 の仕様・手動手順](docs/phase8-export-dialog.md)
-
-## Phase 9 の書き出し統合
-
-1. プラグインを再読み込みして `0.9.2.23` を確認し、「Fuji Photo Renamer — 開発検証版」の書き出し画面を開く。
-2. 「ExifTool 実行ファイルを選択…」で開発用ツールを指定する。空欄の場合は同梱パスを使いますが、同梱物はまだありません。PATH は探索しません。
-3. テンプレートと標準の「書き出し場所」を設定する。C2PA 削除は OFF。
-4. 必要なら「選択中の写真でプレビューを更新」を押す。書き出しは各写真から情報を読み直し、テンプレート名で保存します。同名は `_001`、`_002` を付加します。
-
-例：`{DateTime}_{CameraMaker}_{Camera}_{FilmSim}_{Original}`。拡張子は自動付加します。選択写真のプレビューは実際の書き出し対象・衝突名の確定値ではありません。元 RAW / JPG / XMP は読み取り専用です。[Phase 9 の手動検証・SDK 出典・制約](docs/phase9-export-integration.md)
-
-## Phase 10 の C2PA / JUMBF 削除
-
-「書き出し JPEG の C2PA / Content Credentials を削除する」を ON にすると、SDK生成結果から新しい作業コピーを作り、JUMBFを削除します。元RAW/JPG/XMPは変更しません。ExifTool再読取とJPEGの非JUMBFバイト保持検証が成功したコピーだけを保存します。既定OFFです。64 MiB超や未対応・破損構造、警告・削除失敗は拒否します。[Phase 10 の仕様・手動検証](docs/phase10-c2pa.md)
-
-## 開発の開始点
-
-1. [要件](docs/requirements.md) と [アーキテクチャ](docs/architecture.md) を読む。
-2. [技術検証項目](docs/testing.md#技術検証項目) の未確認事項を確認する。
-3. [Phase 12 の配布・手動確認](docs/phase12-packaging.md)を読み、未検証事項を確認する。公開リリースは別途指示を待つ。
-
-### ExifToolの準備と配布ZIP
-
-開発側にはNode.js 20以上、Python 3.9以上が必要です。macOSのPerlビルドはApple Silicon MacとCommand Line Toolsを使います。追加のnpm / Pythonパッケージは不要です。
+必要な開発ツールはNode.js 20以上とPython 3.9以上です。macOS版のビルドにはApple Silicon MacとApple Command Line Toolsも必要です。追加のnpm / Pythonパッケージは使いません。
 
 ```sh
-node scripts/prepare-exiftool.mjs --platform all --jobs 4
-node scripts/package.mjs --platform all
+# macOS版
+node scripts/prepare-exiftool.mjs --platform macos --jobs 4
+node scripts/package.mjs --platform macos
+
+# Windows版（macOS上でも生成可能）
+node scripts/prepare-exiftool.mjs --platform windows
+node scripts/package.mjs --platform windows
+```
+
+両OSをまとめる場合は`--platform all`を指定します。macOS版の生成を含むため、Apple Silicon Macで実行してください。
+
+`dist/`に次の形式のZIPと`.sha256`ファイルを生成します。バージョンは`Info.lua`から読み取ります。同名のZIPは上書きしません。
+
+```text
+fuji-photo-renamer-lightroom-plugin-<version>-macos.zip
+fuji-photo-renamer-lightroom-plugin-<version>-windows.zip
+```
+
+依存のバージョン・取得元・SHA-256は`scripts/exiftool-lock.json`で固定しています。準備済みキャッシュだけを使う場合は準備コマンドに`--offline`を追加します。[同梱とパッケージの詳細](docs/packaging.md)
+
+## テスト
+
+Lua / luac 5.1を用意し、リポジトリルートで実行します。
+
+```sh
+python3 scripts/run-tests.py --suite core
+python3 scripts/run-tests.py --suite sdk
 node --test tests/packaging_test.mjs
 python3 tests/archive_test.py
-```
-
-`dist/`へOS別ZIPとSHA-256を生成します。同名のZIPは上書きしません。取得済みキャッシュだけで準備する場合は`--offline`を指定します。ユーザー側はZIPを解凍し、`FujiPhotoRenamer.lrplugin/`をプラグインマネージャーから追加します。ExifToolパス欄は空欄にしてください。Perl / ExifToolの追加インストールは不要です。[手順・依存・検証範囲](docs/phase12-packaging.md)
-
-### テスト一式の実行
-
-Python 3、Lua / luac 5.1 を用意します。外部Pythonパッケージは不要です。macOSで実ExifToolも含める場合は、リポジトリのルートで次を実行します。
-
-```sh
-python3 scripts/run-tests.py --exiftool /absolute/path/to/exiftool
 python3 tests/run_tests_test.py
 ```
 
-LuaがPATH上にない場合は `--lua /absolute/path/to/lua --luac /absolute/path/to/luac` を指定します。ExifTool不要の純coreだけは `--suite core`、SDK境界だけは `--suite sdk`、macOSの実ExifTool連携だけは `--suite native --exiftool /absolute/path/to/exiftool` で実行できます。SDK境界テストはLightroom実機テストではありません。
-
-`--shuffle-seed 11` で実行順を再現可能に入れ替えます。各ファイルは別プロセスで動き、失敗・時間超過・成功要約の欠落は非ゼロ終了になります。既定の各プロセス上限は180秒です。個人写真は自動探索せず、必須スイートは合成素材だけを使います。許諾済み実写真の任意確認は従来の個別コマンドで行います。
-
-### 個別のLuaテスト
-
-プラグインは Lightroom 内で実行します。ビルドや Lint の自動化はありません。Lua 5.1 の実行環境を用意した場合、リポジトリのルートで以下を実行できます（Lua 本体は配布物に同梱しません）。
+macOSで実ExifTool連携を含む全Luaテストを実行する場合:
 
 ```sh
-lua -v
-luac -p src/FujiPhotoRenamer.lrplugin/Info.lua src/FujiPhotoRenamer.lrplugin/ExportServiceProvider.lua
-lua tests/core/jpeg_integrity_test.lua
-lua tests/integration/export_artifact_test.lua
-lua tests/integration/metadata_reader_test.lua
-lua tests/integration/c2pa_native_test.lua /absolute/path/to/exiftool
-lua tests/integration/export_pipeline_test.lua
-lua tests/integration/export_preview_test.lua
-lua tests/integration/export_pipeline_native_test.lua /absolute/path/to/exiftool
-lua tests/integration/export_dialog_test.lua
-lua tests/integration/phase1_provider_test.lua
-lua tests/core/filename_safety_test.lua
-lua tests/core/template_engine_test.lua
-lua tests/core/manufacturer_normalizer_test.lua
-lua tests/core/metadata_resolver_test.lua
-lua tests/integration/metadata_resolver_native_test.lua /absolute/path/to/exiftool
-lua tests/integration/metadata_source_resolver_test.lua
-lua tests/integration/metadata_source_resolver_native_test.lua
-lua tests/integration/exiftool_read_test.lua /absolute/path/to/exiftool /absolute/path/to/test-copy.RAF
+python3 scripts/run-tests.py --exiftool /absolute/path/to/exiftool
 ```
 
-`lua -v` が Lua 5.1 であることを確認してください。Phase 2 のネイティブテストには io.popen を利用できる POSIX 対応 Lua が必要です。RAF 引数なしでは合成データを使い、個人写真を自動探索しません。境界テストは SDK の実装を置き換え、エラーと安全な呼び出し順を検証するもので、JPEG の生成や SDK の非上書き動作は確認できません。差分確認には次を使います。
+LuaがPATH上にない場合は`--lua /absolute/path/to/lua --luac /absolute/path/to/luac`を指定します。SDK境界テストはLightroom実機での動作確認とは異なります。[開発・テストの詳しい手順](docs/development.md)
 
-```sh
-git status --short
-git diff
-git diff --check
-```
+## リポジトリ構成とドキュメント
 
-## リポジトリ構成
+- `src/FujiPhotoRenamer.lrplugin/`: Lua / Lightroom Classic SDKによるプラグイン本体
+- `scripts/`: 依存の準備、ZIP生成、テスト実行
+- `tests/`・`fixtures/`: 単体・結合テストと検証用素材
+- `docs/`: 要件、設計、開発手順、技術検証の記録
 
-```text
-fuji-photo-renamer-lightroom-plugin/
-├── AGENTS.md
-├── README.md
-├── CHANGELOG.md
-├── LICENSE
-├── .gitignore
-├── docs/
-│   ├── requirements.md
-│   ├── architecture.md
-│   ├── metadata-resolution.md
-│   ├── tokens.md
-│   ├── c2pa.md
-│   ├── packaging.md
-│   ├── testing.md
-│   ├── phase1-lightroom.md
-│   ├── phase2-exiftool.md
-│   ├── phase3-metadata-sources.md
-│   ├── phase4-metadata-merge.md
-│   ├── phase5-manufacturers.md
-│   ├── phase6-templates.md
-│   ├── phase7-filename-safety.md
-│   ├── phase8-export-dialog.md
-│   ├── phase9-export-integration.md
-│   ├── phase10-c2pa.md
-│   ├── phase11-testing.md
-│   ├── phase12-packaging.md
-│   └── adr/                          # 削除方式・同梱方式の判断
-├── src/
-│   └── FujiPhotoRenamer.lrplugin/
-│       ├── Info.lua
-│       ├── ExportServiceProvider.lua
-│       ├── Phase2Diagnostic.lua
-│       ├── Phase2MetadataDiagnostic.lua
-│       ├── Phase3Diagnostic.lua
-│       ├── Phase4Diagnostic.lua
-│       ├── ExifToolLoader.lua
-│       ├── dkjson.lua
-│       ├── third_party/
-│       ├── THIRD_PARTY_NOTICES/
-│       ├── core/
-│       ├── infrastructure/
-│       ├── ui/
-│       └── lightroom/
-├── tests/
-│   ├── core/
-│   ├── integration/
-│   └── run_tests_test.py
-├── fixtures/
-│   └── metadata/
-└── scripts/                         # run-tests.py、prepare-exiftool.mjs、package.mjs等
-```
+設計書と段階別の開発・検証記録は[ドキュメント一覧](docs/README.md)にまとめています。変更内容は[CHANGELOG](CHANGELOG.md)、貢献時の指針は[AGENTS.md](AGENTS.md)を参照してください。
 
-空ディレクトリは `.gitkeep` で保持します。製品版の推奨ファイル配置は [設計](docs/architecture.md#推奨ファイル配置) に記載しています。ルートの provider は SDK の登録入口で、Phase 9 の処理は lightroom/ 配下に委譲します。
+## ライセンス
 
-## 設計文書
-
-| 文書 | 内容 |
-| --- | --- |
-| [要件](docs/requirements.md) | 対象、主要機能、安全要件、受け入れ条件 |
-| [アーキテクチャ](docs/architecture.md) | 責務、依存方向、書き出しフロー |
-| [メタデータ解決](docs/metadata-resolution.md) | 入力探索、項目単位の優先順位、採用元 |
-| [トークン](docs/tokens.md) | 構文、表示形式、メーカー比較、衝突 |
-| [C2PA](docs/c2pa.md) | 削除対象の制限と検証 |
-| [配布](docs/packaging.md) | ExifTool 同梱、依存、ライセンス |
-| [テスト](docs/testing.md) | テスト方針と技術検証 6 項目 |
-| [Phase 1](docs/phase1-lightroom.md) | 最小 SDK 実装、API 出典、手動検証と判定 |
-| [Phase 2](docs/phase2-exiftool.md) | ExifTool 単体読み取り、内部モデル、実データ検証 |
-| [Phase 3](docs/phase3-metadata-sources.md) | 入力探索、曖昧性、探索診断と検証 |
-| [Phase 4](docs/phase4-metadata-merge.md) | 項目別の有効値採用、日時検証、採用元 |
-| [Phase 5](docs/phase5-manufacturers.md) | メーカーの比較キー・表示名・同一判定 |
-| [Phase 6](docs/phase6-templates.md) | テンプレート構文・9 トークン・メーカー省略・命名候補 |
-| [Phase 7](docs/phase7-filename-safety.md) | ファイル名整形・予約名・長さ制約・衝突候補 |
-| [Phase 8](docs/phase8-export-dialog.md) | 書き出し設定・サンプルプレビュー・プリセット宣言 |
-| [Phase 9](docs/phase9-export-integration.md) | 実写真の取得・テンプレート保存・非上書き境界・実写真プレビュー |
-| [Phase 10](docs/phase10-c2pa.md) | C2PA削除・作業出力の所有・JPEG保持検証 |
-| [Phase 11](docs/phase11-testing.md) | 必須ケース対応表・一括実行・手動Integration Test・残課題 |
-| [Phase 12](docs/phase12-packaging.md) | 固定版ExifTool/Perlの同梱・OS別ZIP・ライセンス・配布検証 |
-
-## ライセンス・公式資料
-
-本プロジェクトは [MIT License](LICENSE) です。同梱する ExifTool、実行ランタイム、SDK にはそれぞれの条件が適用されます。
-
-Adobe は Lua によるプラグイン開発、書き出し UI 拡張、レンダリング済みファイルの別保存先への転送を案内しています。ただし、この設計の実現を実機確認したものではありません。[Adobe Lightroom Classic 開発者ページ](https://developer.adobe.com/lightroom-classic)
+本プロジェクトは[MIT License](LICENSE)です。同梱するExifTool・Perlなどの第三者ソフトウェアには、それぞれのライセンスが適用されます。配布ZIPにライセンスと`THIRD_PARTY_NOTICES.md`を含めます。
