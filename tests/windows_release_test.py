@@ -58,19 +58,33 @@ class IntegrityTest(unittest.TestCase):
 
 
 class ProcessTest(unittest.TestCase):
-    def test_failure_includes_exit_code_and_captured_diagnostics(self):
-        result = subprocess.CompletedProcess([], 1, 'launcher output', 'missing runtime detail')
-        with patch.object(windows_release.subprocess, 'run', return_value=result):
-            with self.assertRaisesRegex(RuntimeError, 'exit 1') as error:
-                windows_release.run_tool(Path('tool.exe'), ['-ver'], {})
-        self.assertIn('launcher output', str(error.exception))
-        self.assertIn('missing runtime detail', str(error.exception))
+    def test_failure_includes_runner_stderr(self):
+        with tempfile.TemporaryDirectory() as directory:
+            work = Path(directory) / 'work'
 
-    def test_success_returns_stdout_and_preserves_arguments(self):
-        result = subprocess.CompletedProcess([], 0, '13.59\n', '')
-        with patch.object(windows_release.subprocess, 'run', return_value=result) as run:
-            self.assertEqual(windows_release.run_tool(Path('folder with spaces/tool.exe'), ['-ver'], {}), '13.59')
-        self.assertEqual(run.call_args.args[0], [str(Path('folder with spaces/tool.exe')), '-config', '', '-ver'])
+            def execute(*args, **kwargs):
+                (work / 'exit-code.txt').write_text('1', encoding='utf-8')
+                (work / 'stderr.txt').write_text('missing runtime detail', encoding='utf-8')
+                return subprocess.CompletedProcess([], 1, '', '')
+
+            with patch.object(windows_release.subprocess, 'run', side_effect=execute):
+                with self.assertRaisesRegex(RuntimeError, 'missing runtime detail'):
+                    windows_release.run_runner(Path(directory), Path('tool.exe'), work, ['-ver'], {'SYSTEMROOT': '/windows'})
+
+    def test_success_preserves_utf8_argument_file_and_reads_status(self):
+        with tempfile.TemporaryDirectory() as directory:
+            work = Path(directory) / 'work'
+
+            def execute(*args, **kwargs):
+                (work / 'exit-code.txt').write_text('0', encoding='utf-8')
+                (work / 'stdout.json').write_text('13.59\n', encoding='utf-8')
+                return subprocess.CompletedProcess([], 0, '', '')
+
+            with patch.object(windows_release.subprocess, 'run', side_effect=execute):
+                output = windows_release.run_runner(Path(directory), Path('folder with spaces/tool.exe'), work,
+                                                    ['-j', '写真.jpg'], {'SYSTEMROOT': '/windows'})
+            self.assertEqual(output, '13.59')
+            self.assertEqual((work / 'arguments.txt').read_text(encoding='utf-8'), '-j\n写真.jpg\n')
 
 
 if __name__ == '__main__':

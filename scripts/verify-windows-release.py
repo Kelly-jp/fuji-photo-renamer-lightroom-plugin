@@ -13,19 +13,13 @@ from archive import extract
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run_tool(tool, arguments, env):
-    result = subprocess.run([str(tool), '-config', '', *arguments], env=env,
-                            capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=60)
-    if result.returncode:
-        raise RuntimeError(f'Bundled ExifTool failed (exit {result.returncode}).\n'
-                           f'stdout: {result.stdout[-8000:]}\nstderr: {result.stderr[-8000:]}')
-    return result.stdout.strip()
-
-
 def run_runner(plugin, tool, work, arguments, env):
     work.mkdir()
     (work / 'arguments.txt').write_text('\n'.join(arguments) + '\n', encoding='utf-8')
-    powershell = Path(env['SystemRoot']) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
+    system_root = next((value for key, value in env.items() if key.upper() == 'SYSTEMROOT'), None)
+    if not system_root:
+        raise ValueError('Windows SystemRoot is missing')
+    powershell = Path(system_root) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
     result = subprocess.run([str(powershell), '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
                              str(plugin / 'infrastructure/ExifToolRead.ps1'), '-Executable', str(tool),
                              '-WorkDirectory', str(work), '-TimeoutSeconds', '60'],
