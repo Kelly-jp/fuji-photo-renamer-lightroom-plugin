@@ -39,6 +39,7 @@ jobs:
           python3 tests/archive_test.py
           python3 tests/run_tests_test.py
           python3 tests/windows_release_test.py
+          python3 tests/release_download_test.py
       - name: Build checksum-verified Lua 5.1 for tests
         run: |
           node --input-type=module <<'JS'
@@ -54,7 +55,9 @@ jobs:
           });
           JS
       - name: Prepare fixed ExifTool and Perl payloads
-        run: node scripts/prepare-exiftool.mjs --platform all --jobs 3
+        run: |
+          python3 scripts/cache-release-sources.py
+          node scripts/prepare-exiftool.mjs --platform all --jobs 3 --offline
       - name: Run all Lua tests
         run: |
           python3 scripts/run-tests.py \

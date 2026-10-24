@@ -26,24 +26,24 @@ Actionは確認済みの完全コミットSHAで固定しています。更新�
 ## リリースの準備
 
 1. `src/FujiPhotoRenamer.lrplugin/Info.lua`の`major` / `minor` / `revision`を決める。タグとZIP名にはこの3値を使い、`build`は含めない。同じ3値で別の公開物を出さない。
-2. `CHANGELOG.md`の`Unreleased`から対象の変更を移し、版別の見出しを作る。例えばInfo.luaが`0.10.4`なら以下の形式にする。
+2. `CHANGELOG.md`の`Unreleased`から対象の変更を移し、版別の見出しを作る。例えばInfo.luaが`0.10.5`なら以下の形式にする。
 
    ```markdown
    ## Unreleased
 
-   ## [0.10.4] - YYYY-MM-DD
+   ## [0.10.5] - YYYY-MM-DD
 
    ### Fixed
 
    - リリースに含まれる変更内容。
    ```
 
-   `## 0.10.4`形式も利用可能。対象の見出しは1個、本文は必須。`Unreleased`を代わりに使うことはできない。Releaseノートへは対象見出しの本文だけを採用する。
+   `## 0.10.5`形式も利用可能。対象の見出しは1個、本文は必須。`Unreleased`を代わりに使うことはできない。Releaseノートへは対象見出しの本文だけを採用する。
 
 3. 変更をPRで`main`へマージする。ローカル確認が必要なら、空の出力先を指定して次を実行する（ZIPをビルドする前の検査）。
 
    ```sh
-   node scripts/release.mjs prepare v0.10.4 build/release-preview
+   node scripts/release.mjs prepare v0.10.5 build/release-preview
    ```
 
 4. 最新の`main`でタグを作成し、そのタグだけをpushする。
@@ -51,8 +51,8 @@ Actionは確認済みの完全コミットSHAで固定しています。更新�
    ```sh
    git switch main
    git pull --ff-only origin main
-   git tag -a v0.10.4 -m 'Fuji Photo Renamer v0.10.4'
-   git push origin v0.10.4
+   git tag -a v0.10.5 -m 'Fuji Photo Renamer v0.10.5'
+   git push origin v0.10.5
    ```
 
 タグは正式な`v数字.数字.数字`だけに対応します。先頭ゼロ、`-beta`等の接尾辞、Info.luaと異なる版は拒否します。現在のCHANGELOGが`Unreleased`だけなら、先に版別見出しを用意してください。タグやReleaseはこの機能の導入だけでは作成しません。
@@ -90,7 +90,7 @@ python3 tests/windows_release_test.py
 Windows機では、検証済みWindows ZIPに対して次も実行できます。
 
 ```sh
-python scripts/verify-windows-release.py dist/fuji-photo-renamer-lightroom-plugin-0.10.4-windows.zip
+python scripts/verify-windows-release.py dist/fuji-photo-renamer-lightroom-plugin-0.10.5-windows.zip
 ```
 
 ## 出典
@@ -116,3 +116,9 @@ v0.10.3ではmacOSの新規Perlビルド・標準テスト、Lua 680件、ZIP検
 Release preflightはPRでもWindows ZIPを新規生成し、実プラグインと同じランナーで日本語を含む設置先・作業先・写真パスの起動と読取を検証します。GitHub上のWindows Node.js 22で再現したHTTP解析の異常終了を避け、固定URL・SHA-256を保ったPython HTTPSでキャッシュを準備してから既存スクリプトをoffline実行します。`.gitattributes`でLFを固定し、dkjsonのチェックサムも維持します。
 
 Actionのメジャー番号だけではランタイムを判断せず、各固定コミットの`action.yml`で`runs.using: node24`を確認しています。checkout v5、setup-node v5、setup-python v6、upload-artifact v6、download-artifact v7を採用し、ツール用Node.jsも24にしました。PRのWindowsジョブは成功済みですが、artifact転送を含むRelease全体の確認は新タグの実行結果へ追記します。
+
+## 共通HTTPS取得への統一
+
+v0.10.4ではNode.js 24のmacOSでも依存取得時にUndiciの`assert(!this.paused)`による異常終了を確認しました。0.10.5では`scripts/cache-release-sources.py`をReleaseとWindows事前チェックで共用します。既存lockのURLとSHA-256をそのまま使い、Python標準HTTPSで取得・検証した後、Nodeの準備スクリプトを`--offline`で実行します。既存キャッシュの不一致やダウンロード失敗を無視せず停止し、検証済みバイトだけをリンクで公開して既存ファイルを置換しません。
+
+ローカルでは`python3 scripts/cache-release-sources.py`で同じ取得を実行できます。テストは`python3 tests/release_download_test.py`です。これはHTTPS転送経路の変更で、同梱するExifTool / Perlの版や配布ファイルの許可リストは変えません。
