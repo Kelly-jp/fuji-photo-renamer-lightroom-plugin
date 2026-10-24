@@ -1,0 +1,145 @@
+name: Release draft
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Validate tag, main ancestry and release notes
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          test "$(uname -m)" = arm64
+          git merge-base --is-ancestor HEAD origin/main
+          node scripts/release.mjs prepare "$RELEASE_TAG" dist
+      - name: Test release and packaging helpers
+        run: |
+          node --test tests/packaging_test.mjs tests/release_test.mjs
+          python3 tests/archive_test.py
+          python3 tests/run_tests_test.py
+          python3 tests/windows_release_test.py
+      - name: Build checksum-verified Lua 5.1 for tests
+        run: |
+          node --input-type=module <<'JS'
+          import path from 'node:path';
+          import { root, download, run } from './scripts/packaging.mjs';
+          const archive = await download({
+            filename: 'lua-5.1.5.tar.gz', url: 'https://www.lua.org/ftp/lua-5.1.5.tar.gz',
+            sha256: '2640fc56a795f29d28ef15e13c34a47e223960b0240e8cb0a82d9b0738695333',
+          }, false);
+          await run('python3', ['scripts/archive.py', 'extract', archive, 'build/release-lua']);
+          await run('/usr/bin/make', ['macosx', 'MYCFLAGS=-Wno-error=implicit-function-declaration'], {
+            cwd: path.join(root, 'build/release-lua/lua-5.1.5'), timeout: 300000,
+          });
+          JS
+      - name: Prepare fixed ExifTool and Perl payloads
+        run: node scripts/prepare-exiftool.mjs --platform all --jobs 3
+      - name: Run all Lua tests
+        run: |
+          python3 scripts/run-tests.py \
+            --lua build/release-lua/lua-5.1.5/src/lua \
+            --luac build/release-lua/lua-5.1.5/src/luac \
+            --exiftool "$PWD/.cache/prepared-exiftool/macos-arm64/payload/vendor/macos/exiftool" \
+            --shuffle-seed 27
+      - name: Package and verify both OS archives
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node scripts/package.mjs --platform all
+          version="${RELEASE_TAG#v}"
+          python3 tests/package_native_test.py \
+            "dist/fuji-photo-renamer-lightroom-plugin-${version}-macos.zip" \
+            "dist/fuji-photo-renamer-lightroom-plugin-${version}-windows.zip"
+          python3 scripts/archive.py extract \
+            "dist/fuji-photo-renamer-lightroom-plugin-${version}-macos.zip" build/release-installed
+          build/release-lua/lua-5.1.5/src/lua tests/integration/export_pipeline_native_test.lua \
+            "$PWD/build/release-installed/FujiPhotoRenamer.lrplugin/vendor/macos/exiftool" \
+            "$PWD/build/release-installed/FujiPhotoRenamer.lrplugin"
+          node scripts/release.mjs verify "$RELEASE_TAG" dist
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-bundle
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-smoke:
+    needs: build
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-bundle
+          path: dist
+      - name: Verify the actual Windows bundle
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: pwsh
+        run: |
+          node scripts/release.mjs verify $env:RELEASE_TAG dist
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $version = $env:RELEASE_TAG.Substring(1)
+          python scripts/verify-windows-release.py "dist/fuji-photo-renamer-lightroom-plugin-$version-windows.zip"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  release:
+    needs: [build, windows-smoke]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-bundle
+          path: dist
+      - name: Verify assets and create draft without replacing an existing release
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/release.mjs verify "$RELEASE_TAG" dist
+          version="${RELEASE_TAG#v}"
+          gh release create "$RELEASE_TAG" --draft --verify-tag \
+            --title "Fuji Photo Renamer $RELEASE_TAG" --notes-file dist/release-notes.md \
+            "dist/fuji-photo-renamer-lightroom-plugin-${version}-macos.zip" \
+            "dist/fuji-photo-renamer-lightroom-plugin-${version}-macos.zip.sha256" \
+            "dist/fuji-photo-renamer-lightroom-plugin-${version}-windows.zip" \
+            "dist/fuji-photo-renamer-lightroom-plugin-${version}-windows.zip.sha256"

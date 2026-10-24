@@ -5,6 +5,7 @@
 ## 開発ガイド
 
 - [開発環境・テスト実行・リポジトリ構成](development.md)
+- [GitHub Releaseの準備・自動ビルド・公開](releases.md)
 - [READMEから移した段階別の開発・検証経緯](development-history.md)
 - [C2PA作業出力の所有に関する判断](adr/0001-c2pa-private-output.md)
 - [ExifTool・Perlの同梱に関する判断](adr/0002-bundled-exiftool.md)
