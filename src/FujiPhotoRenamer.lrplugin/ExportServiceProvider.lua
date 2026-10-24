@@ -4,6 +4,7 @@ local LrPathUtils = import 'LrPathUtils'
 local LrTasks = import 'LrTasks'
 local LrView = import 'LrView'
 local LrApplication = import 'LrApplication'
+local LrShell = import 'LrShell'
 
 local function loadModule(relativePath, dependencies)
     local path = LrPathUtils.child(_PLUGIN.path, relativePath)
@@ -15,6 +16,10 @@ local metadataResolver = loadModule('core/MetadataResolver.lua')
 local normalizer = loadModule('core/ManufacturerNormalizer.lua')
 local parser = loadModule('core/TemplateParser.lua')
 local sanitizer = loadModule('core/FilenameSanitizer.lua')
+local exclusions = loadModule('core/FilenameExclusions.lua')
+local postProcessing = loadModule('infrastructure/ExportPostProcessing.lua', {
+    fileUtils = LrFileUtils, pathUtils = LrPathUtils, shell = LrShell,
+})
 local tokens = loadModule('core/TokenResolver.lua', { normalizer = normalizer, metadataResolver = metadataResolver })
 local context = { fileUtils = LrFileUtils, pathUtils = LrPathUtils, tasks = LrTasks, pluginPath = _PLUGIN.path,
     platform = WIN_ENV and 'windows' or MAC_ENV and 'macos' or nil }
@@ -27,6 +32,7 @@ local metadataReader = loadModule('infrastructure/MetadataReader.lua', {
 })
 local exportDialog = loadModule('ui/ExportDialog.lua', {
     bind = LrView.bind, parser = parser, tokens = tokens, sanitizer = sanitizer,
+    exclusions = exclusions, postProcessing = postProcessing,
     tasks = LrTasks, dialogs = LrDialogs,
     readPreview = function(mode, path)
         local photo = LrApplication.activeCatalog():getTargetPhoto()
@@ -43,6 +49,7 @@ context.collisions = loadModule('core/CollisionResolver.lua', { sanitizer = sani
 return loadModule('lightroom/ExportServiceProvider.lua', {
     dialogs = LrDialogs, fileUtils = LrFileUtils, pathUtils = LrPathUtils, tasks = LrTasks,
     parser = parser, tokens = tokens, sanitizer = sanitizer, ui = exportDialog,
+    exclusions = exclusions, postProcessing = postProcessing,
     reader = reader, metadataReader = metadataReader, artifacts = context.artifacts,
     fileSystem = loadModule('infrastructure/FileSystem.lua', context),
 })

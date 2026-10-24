@@ -11,6 +11,8 @@ local function harness(readPreview)
         bind = function(key) return key end, parser = loadCore('TemplateParser'), sanitizer = loadCore('FilenameSanitizer'),
         tokens = loadCore('TokenResolver', { normalizer = loadCore('ManufacturerNormalizer'), metadataResolver = resolver }),
         tasks = tasks, readPreview = readPreview,
+        exclusions = loadCore('FilenameExclusions'),
+        postProcessing = { validate = function() return true end },
     }
     local props = properties { fprTemplate = '{Camera}_{Original}' }
     ui.startDialog(props)

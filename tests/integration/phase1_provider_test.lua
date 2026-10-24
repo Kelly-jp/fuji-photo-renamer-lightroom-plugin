@@ -101,7 +101,7 @@ test('second rendition with the same stem uses a collision suffix', function()
     assertEqual(#h.copies, 2)
     assertEqual(#h.errors, 0)
     assertEqual(h.copies[2][2], '/output/test_DSCF1234_001.jpg')
-    assert(h.messages[1][2]:find('保存済み：2', 1, true))
+    assertEqual(#h.messages, 0)
 end)
 
 for _, case in ipairs { { 'canceled', { canceled = true } }, { 'skipped', { skipped = true } } } do

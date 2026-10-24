@@ -176,4 +176,64 @@ for _, options in ipairs { { copyFailure = true }, { partialFailure = true }, { 
         if options.partialFailure then equal(h.files['/output/test_DSCF1234.jpg'], 'file') end
     end)
 end
+test('cleans the original name before formatting without altering literals or camera metadata', function()
+    local h = newHarness { original = '/original/DSCF9649-DxO_DeepPRIME XD2s_XD.DNG', metadata = { camera = 'DxO' } }
+    h.settings.fprTemplate = 'DxO_{Camera}_{Original}'; h.settings.fprExcludedStrings = '-DxO_DeepPRIME XD2s_XD\nDxO'
+    h.run(); equal(#h.errors, 0); equal(h.copies[1][2], '/output/DxO_DxO_DSCF9649.jpg')
+end)
+test('can omit Original entirely even if its cleaned value is empty', function()
+    local h = newHarness { metadata = { camera = 'X-H2S' } }; h.settings.fprTemplate = '{Camera}'
+    h.settings.fprExcludedStrings = 'DSCF1234'; h.run(); equal(#h.errors, 0); equal(h.copies[1][2], '/output/X-H2S.jpg')
+end)
+test('fails an empty cleaned Original only when the template needs it', function()
+    local h = newHarness(); h.settings.fprTemplate = '{Original}'; h.settings.fprExcludedStrings = 'DSCF1234'
+    h.run(); equal(#h.errors, 1); equal(#h.copies, 0)
+end)
+test('cleans names before resolving collisions and reveals only final paths', function()
+    local h = newHarness { original = '/original/DSCF1234-DxO.RAF', repeatCount = 2 }
+    h.settings.fprTemplate = '{Original}'; h.settings.fprExcludedStrings = '-DxO'; h.settings.fprPostProcessing = 'reveal'
+    h.run(); equal(h.copies[2][2], '/output/DSCF1234_001.jpg'); equal(#h.revealed, 1)
+    equal(h.revealed[1], '/output/DSCF1234.jpg')
+end)
+test('opens only successful final outputs after C2PA processing', function()
+    local h = newHarness { repeatCount = 2, firstReadError = true, extraFiles = { ['/Apps/Editor.app'] = 'directory' } }
+    h.settings.fprRemoveC2pa = true; h.settings.fprPostProcessing = 'open_application'; h.settings.fprPostProcessingApplication = '/Apps/Editor.app'
+    h.run(); equal(#h.errors, 1); equal(#h.opened, 1); equal(h.opened[1], '/output/test_DSCF1234.jpg')
+end)
+test('post-processing failure is a warning and does not roll back saved JPEGs', function()
+    local h = newHarness { postFailure = true }; h.settings.fprPostProcessing = 'reveal'; h.run()
+    equal(#h.errors, 0); equal(h.files['/output/test_DSCF1234.jpg'], 'file'); equal(h.messages[1][3], 'warning')
+end)
+test('cancellation does not invoke post-processing', function()
+    local h = newHarness { canceled = true }; h.settings.fprPostProcessing = 'reveal'; h.run()
+    equal(h.revealed, nil)
+end)
+test('cancelling a later photo keeps saved files without launching post-processing', function()
+    local h = newHarness { repeatCount = 2, onRead = function(state)
+        if state.reads == 2 then state.cancelRequested = true end
+    end }
+    h.settings.fprPostProcessing = 'reveal'; h.run()
+    equal(#h.copies, 1); equal(h.revealed, nil); equal(h.files['/output/test_DSCF1234.jpg'], 'file')
+end)
+test('invalid post-processing settings fail before rendering', function()
+    local h = newHarness(); h.settings.fprPostProcessing = 'open_application'; h.settings.fprPostProcessingApplication = '/missing.app'
+    h.run(); equal(h.waits, 0); equal(#h.copies, 0); equal(h.messages[1][3], 'critical')
+end)
+test('freezes exclusion and post-processing settings across the whole session', function()
+    local h = newHarness { original = '/original/DSCF1234-DxO.RAF', repeatCount = 2, onRead = function(state)
+        state.settings.fprExcludedStrings = ''; state.settings.fprPostProcessing = 'none'
+    end }
+    h.settings.fprTemplate = '{Original}'; h.settings.fprExcludedStrings = '-DxO'; h.settings.fprPostProcessing = 'reveal'
+    h.run(); equal(h.copies[2][2], '/output/DSCF1234_001.jpg'); equal(#h.revealed, 1)
+end)
+test('successful exports do not show completion information dialogs', function()
+    local h = newHarness(); h.run(); equal(#h.copies, 1); equal(#h.messages, 0)
+end)
+test('successful C2PA processing and Finder reveal do not show completion dialogs', function()
+    local h = newHarness(); h.settings.fprRemoveC2pa = true; h.settings.fprPostProcessing = 'reveal'
+    h.run(); equal(#h.copies, 1); equal(#h.revealed, 1); equal(#h.messages, 0)
+end)
+test('exports with no processed files do not show information dialogs', function()
+    local h = newHarness { skipped = true }; h.run(); equal(#h.copies, 0); equal(#h.messages, 0)
+end)
 print(string.format('%d Phase 9 pipeline tests passed.', count))

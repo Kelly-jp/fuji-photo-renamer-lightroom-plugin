@@ -28,6 +28,10 @@ sdk.LrFileUtils.move = function(source, destination)
     write(destination, read(source)); assert(os.remove(source)); copied[#copied + 1] = destination; return true
 end
 local messages = {}
+local revealed = {}
+sdk.LrShell.revealInShell = function(path)
+    assert(sdk.LrFileUtils.exists(path) == 'file'); revealed[#revealed + 1] = path
+end
 sdk.LrDialogs = { message = function(title, message) messages[#messages + 1] = { title, message } end }
 sdk.LrView = { bind = function(key) return key end }
 local selectedPhoto
@@ -36,9 +40,11 @@ sdk.LrTasks.startAsyncTask = function(callback) callback() end
 _G.import = function(name) return assert(sdk[name], name) end
 local provider = assert(loadfile(context.pluginPath .. '/ExportServiceProvider.lua'))()
 local count = 0
+local originalPath = work .. '/sample.jpg'
 local function test(name, callback) callback(); count = count + 1; print('PASS ' .. name) end
-local function export(template, directPath, removeC2pa, renderedData)
+local function export(template, directPath, removeC2pa, renderedData, excludedStrings, postProcessing)
     local settings = { fprExifToolPath = arg[2] and '' or executable, fprTemplate = template, fprRemoveC2pa = removeC2pa or false,
+        fprExcludedStrings = excludedStrings or '', fprPostProcessing = postProcessing or 'none',
         LR_export_destinationType = 'specificFolder', LR_export_destinationPathPrefix = work .. '/output' }
     local renderedPath = directPath or work .. '/render.jpg'
     assert(not sdk.LrFileUtils.exists(renderedPath), 'Refusing to overwrite an existing test file')
@@ -50,7 +56,7 @@ local function export(template, directPath, removeC2pa, renderedData)
         propertyTable = settings, configureProgress = function() return progress end,
         renditions = function() return function()
             if emitted then return end; emitted = true
-            return 1, { type = function() return 'LrExportRendition' end, destinationPath = renderedPath, photo = { getRawMetadata = function(_, key) assert(key == 'path'); return work .. '/sample.jpg' end },
+            return 1, { type = function() return 'LrExportRendition' end, destinationPath = renderedPath, photo = { getRawMetadata = function(_, key) assert(key == 'path'); return originalPath end },
                 waitForRender = function() return true, renderedPath end,
                 uploadFailed = function(_, message) failures[#failures + 1] = message end }
         end end,
@@ -115,6 +121,14 @@ test('C2PA OFF preserves all original rendition bytes', function()
 end)
 test('keeps original JPEG XMP byte-identical and transfers the SDK render', function()
     assert(read(work .. '/sample.jpg') == jpeg and read(work .. '/sample.xmp') == xmp and not sdk.LrFileUtils.exists(work .. '/render.jpg'))
+end)
+test('cleans a PureRAW source name before formatting and reveals the final C2PA-clean JPEG', function()
+    local source = work .. '/DSCF9649-DxO_DeepPRIME XD2s_XD.jpg'; write(source, jpeg)
+    originalPath = source
+    export('DxO_{Original}', nil, true, jumbfFixture.add(jpeg), '-DxO_DeepPRIME XD2s_XD', 'reveal')
+    originalPath = work .. '/sample.jpg'
+    assert(revealed[#revealed] == work .. '/output/DxO_DSCF9649.jpg')
+    assert(read(revealed[#revealed]) == jpeg and read(source) == jpeg); assert(os.remove(source))
 end)
 -- Only known files created by this test are removed.
 for _, path in ipairs(copied) do assert(os.remove(path)) end

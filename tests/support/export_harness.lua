@@ -87,12 +87,25 @@ local function newHarness(options)
     local function loadModule(name, deps) return assert(loadfile(pluginDirectory .. name))(deps) end
     local metadataResolver = loadModule('core/MetadataResolver.lua')
     local parser = loadModule('core/TemplateParser.lua')
+    local exclusions = loadModule('core/FilenameExclusions.lua')
+    local postProcessing = loadModule('infrastructure/ExportPostProcessing.lua', {
+        fileUtils = namespaces.LrFileUtils, pathUtils = namespaces.LrPathUtils,
+        shell = { revealInShell = function(path)
+            state.revealed = state.revealed or {}; state.revealed[#state.revealed + 1] = path
+            if options.postFailure then error('Reveal failed') end
+        end, openFilesInApp = function(paths, application)
+            state.opened, state.application = paths, application
+            if options.postFailure then error('Open failed') end
+        end },
+    })
     local sanitizer = loadModule('core/FilenameSanitizer.lua')
     local tokens = loadModule('core/TokenResolver.lua', { normalizer = loadModule('core/ManufacturerNormalizer.lua'), metadataResolver = metadataResolver })
-    local ui = loadModule('ui/ExportDialog.lua', { bind = namespaces.LrView.bind, parser = parser, tokens = tokens, sanitizer = sanitizer })
+    local ui = loadModule('ui/ExportDialog.lua', { bind = namespaces.LrView.bind, parser = parser, tokens = tokens, sanitizer = sanitizer,
+        exclusions = exclusions, postProcessing = postProcessing })
     state.provider = loadModule('lightroom/ExportServiceProvider.lua', {
         dialogs = namespaces.LrDialogs, fileUtils = namespaces.LrFileUtils, pathUtils = namespaces.LrPathUtils,
         tasks = namespaces.LrTasks, ui = ui, parser = parser, tokens = tokens, sanitizer = sanitizer,
+        exclusions = exclusions, postProcessing = postProcessing,
         reader = { resolveExecutablePath = function()
             if options.toolException then error('Path check exception') end
             if options.missingTool then return nil, { code = 'ExecutableMissing', message = 'Missing tool' } end
