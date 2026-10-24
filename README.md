@@ -78,7 +78,7 @@ fuji-photo-renamer-lightroom-plugin-<version>-windows.zip
 
 ## GitHub Release
 
-`Info.lua`と`CHANGELOG.md`の版をそろえてmainへマージし、`v0.10.4`のようなタグをpushすると、GitHub Actionsがテスト・OS別ZIP生成・Windows同梱ExifToolの確認を行い、4つの配布ファイルを添付したRelease下書きを作成します。自動公開はしません。[準備・公開・失敗時の手順](docs/releases.md)
+`Info.lua`と`CHANGELOG.md`の版をそろえてmainへマージし、`v0.10.5`のようなタグをpushすると、GitHub Actionsがテスト・OS別ZIP生成・Windows同梱ExifToolの確認を行い、4つの配布ファイルを添付したRelease下書きを作成します。自動公開はしません。[準備・公開・失敗時の手順](docs/releases.md)
 
 ## テスト
 

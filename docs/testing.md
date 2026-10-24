@@ -259,3 +259,9 @@ macOSの配布物は既存の0.10.2 ZIPを再利用し、Windows ZIPは検証済
 ## 初回Release事前検証の修正
 
 v0.10.2の失敗ログで、対象版のCHANGELOG欠落によりprepareが終了コード1で停止したことを確認しました。0.10.3.27と版別ノートを用意し、ローカルのprepare成功を確認しました。エラーの具体化と実リポジトリの版・ノート整合性の回帰を追加し、Nodeリリース18件・配布20件が成功。Info.luaのLua 5.1構文と、2つのワークフローのactionlint検証も成功しました。元のタグの再実行ではこの修正を反映できないため、新タグでの全体確認は未実施です。
+
+## Windows起動・Actionsランタイム・HTTPS取得の修正
+
+v0.10.3のmacOS GitHubランナーではPerlの新規configure/build/test/install、Lua 680件、実ZIP7件、解凍したプラグインの実ExifTool経路9件が成功しました。Windowsの日本語設置パスでDLL探索が失敗したため、原版バイナリを保持したままPowerShellで既存の短縮パスを利用する修正を行いました。PR #18のWindowsジョブでは日本語設置先・作業先・写真からの版取得・JPEG読取・入力不変が成功しました。8.3短縮名が使えない環境とLightroomのWindows UIは未検証です。
+
+各公式Actionの固定コミットのaction.ymlを確認し、実行ランタイムがnode24の版へ更新しました。Node.js 24のmacOSにもHTTP解析エラーが再現したため、ReleaseとWindows事前チェックの取得を共通Python標準HTTPSへ統一しました。ダウンロード回帰8件、Windowsランナー/整合性7件、Nodeリリース18件・配布20件、actionlintがローカルで成功。共通HTTPSによるRelease全体の結果はv0.10.5タグで確認します。
