@@ -3,6 +3,8 @@ local bind = assert(dependencies.bind)
 local parser = assert(dependencies.parser)
 local tokens = assert(dependencies.tokens)
 local sanitizer = assert(dependencies.sanitizer)
+local exclusions = assert(dependencies.exclusions)
+local postProcessing = assert(dependencies.postProcessing)
 local Dialog = {}
 Dialog.exportPresetFields = {
     { key = 'fprTemplate', default = '{DateTime}_{Original}' },
@@ -10,9 +12,13 @@ Dialog.exportPresetFields = {
     { key = 'fprOmitDuplicateManufacturer', default = true },
     { key = 'fprRemoveC2pa', default = false },
     { key = 'fprExifToolPath', default = '' },
+    { key = 'fprExcludedStrings', default = '' },
+    { key = 'fprPostProcessing', default = 'none' },
+    { key = 'fprPostProcessingApplication', default = '' },
 }
 local modes = { same_directory = true, parent_directory = true, same_then_parent = true }
-local observedKeys = { 'fprTemplate', 'fprRawSearchMode', 'fprOmitDuplicateManufacturer', 'fprRemoveC2pa', 'fprExifToolPath' }
+local observedKeys = { 'fprTemplate', 'fprRawSearchMode', 'fprOmitDuplicateManufacturer', 'fprRemoveC2pa', 'fprExifToolPath',
+    'fprExcludedStrings', 'fprPostProcessing', 'fprPostProcessingApplication' }
 local sessions = setmetatable({}, { __mode = 'k' })
 local sample = { captureDateTime = '2026:10:08 12:34:56', cameraMaker = 'FUJIFILM', camera = 'X-H2S',
     lensMaker = 'FUJIFILM Corporation', lens = 'XF100-400mm', filmSim = 'PROVIA' }
@@ -22,15 +28,24 @@ local function setting(properties, key)
     for _, field in ipairs(Dialog.exportPresetFields) do if field.key == key then return field.default end end
 end
 
-function Dialog.preview(properties, photo)
+function Dialog.preview(properties, photo, validateSettingsOnly)
     local parsed, err = parser.parse(setting(properties, 'fprTemplate'))
     if not parsed then return nil, err.message end
     if not modes[setting(properties, 'fprRawSearchMode')] then return nil, 'RAW 探索方法を選択してください。' end
     if type(setting(properties, 'fprOmitDuplicateManufacturer')) ~= 'boolean'
         or type(setting(properties, 'fprRemoveC2pa')) ~= 'boolean' then return nil, 'チェックボックスの設定値が不正です。' end
     if type(setting(properties, 'fprExifToolPath')) ~= 'string' then return nil, 'ExifTool のパスは文字列で指定してください。' end
+    local valid, postError = postProcessing.validate(setting(properties, 'fprPostProcessing'), setting(properties, 'fprPostProcessingApplication'))
+    if not valid then return nil, postError end
+    local original = photo and photo.original or 'DSCF1234'
+    local cleaned, filterError = exclusions.apply(original, setting(properties, 'fprExcludedStrings'))
+    if not cleaned then return nil, filterError.message end
+    if not validateSettingsOnly and parsed.tokens.Original and not cleaned:find('%S') then
+        return nil, '除外文字列の削除後、{Original}に使う元ファイル名が空になりました。'
+    end
     local candidate, tokenError = tokens.resolve(parsed, photo and photo.metadata or sample, {
-        original = photo and photo.original or 'DSCF1234', extension = 'jpg',
+        -- A sample name fully removed by a rule must not prevent exporting different real photos.
+        original = validateSettingsOnly and original or cleaned, extension = 'jpg',
         omitDuplicateManufacturer = setting(properties, 'fprOmitDuplicateManufacturer'),
     })
     if not candidate then return nil, tokenError.message end
@@ -40,7 +55,11 @@ function Dialog.preview(properties, photo)
 end
 
 function Dialog.cannotExportBecause(properties)
-    local filename, message = Dialog.preview(properties)
+    local owner = sessions[properties]
+    if owner and owner.editingExclusions then
+        return '除外文字列を編集中です。「編集を完了」を押してから書き出してください。'
+    end
+    local filename, message = Dialog.preview(properties, nil, true)
     if not filename then return message end
 end
 
@@ -59,6 +78,8 @@ end
 local function refresh(properties)
     migrateTemplate(properties)
     local owner = sessions[properties]
+    properties.fprExclusionsEditing = owner and owner.editingExclusions == true or false
+    properties.fprExclusionsEditButtonTitle = properties.fprExclusionsEditing and '編集を完了' or '除外文字列を編集…'
     local filename, message, details = Dialog.preview(properties, owner and owner.photo)
     properties.fprPreview = filename or 'プレビューを作成できません。'
     properties.fprPreviewSource = owner and owner.source or 'ファイル名プレビュー（サンプル情報）'
@@ -77,6 +98,7 @@ function Dialog.endDialog(properties)
         if owner.reason and properties.LR_cantExportBecause == owner.reason then properties.LR_cantExportBecause = nil end
         sessions[properties] = nil
     end
+    properties.fprExclusionsEditing = false
 end
 
 function Dialog.startDialog(properties)
@@ -120,22 +142,18 @@ function Dialog.requestPreview(properties)
 end
 
 function Dialog.sections(f, properties)
-    local tokenRows = {}
+    local tokenButtons = {}
     local names = { 'Date', 'Time', 'DateTime', 'Original', 'CameraMaker', 'Camera', 'LensMaker', 'Lens', 'FilmSim' }
-    for offset = 1, #names, 4 do
-        local buttons = {}
-        for i = offset, math.min(offset + 3, #names) do
-            local token = '{' .. names[i] .. '}'
-            buttons[#buttons + 1] = f:push_button {
-                title = token,
-                action = function()
-                    local template = properties.fprTemplate
-                    if type(template) ~= 'string' then template = '' end
-                    properties.fprTemplate = template .. token
-                end,
-            }
-        end
-        tokenRows[#tokenRows + 1] = f:row(buttons)
+    for _, name in ipairs(names) do
+        local token = '{' .. name .. '}'
+        tokenButtons[#tokenButtons + 1] = f:push_button {
+            title = token,
+            action = function()
+                local template = properties.fprTemplate
+                if type(template) ~= 'string' then template = '' end
+                properties.fprTemplate = template .. token
+            end,
+        }
     end
     return {
         {
@@ -145,7 +163,15 @@ function Dialog.sections(f, properties)
             f:static_text { title = 'ファイル名テンプレート', width_in_chars = 65 },
             f:edit_field { value = bind 'fprTemplate', immediate = true, width_in_chars = 65 },
             f:static_text { title = 'トークンをクリックするとテンプレート末尾へ追加します。区切りの _ や - は入力欄で編集してください。拡張子は出力形式から自動で付きます。', width_in_chars = 65, height_in_lines = -1 },
-            tokenRows[1], tokenRows[2], tokenRows[3],
+            f:row(tokenButtons),
+            f:static_text { title = '元ファイル名から削除する文字列（1行に1件、複数指定可）', width_in_chars = 65 },
+            f:push_button { title = bind 'fprExclusionsEditButtonTitle', action = function()
+                local owner = sessions[properties]
+                if owner then owner.editingExclusions = not owner.editingExclusions; refresh(properties) end
+            end },
+            f:edit_field { value = bind 'fprExcludedStrings', enabled = bind 'fprExclusionsEditing', immediate = true, width_in_chars = 65, height_in_lines = 4, wraps = true },
+            f:static_text { title = '改行：MacはOption＋Return、WindowsはCtrl＋J。入力後に「編集を完了」を押してください。', width_in_chars = 65, height_in_lines = -1 },
+            f:static_text { title = '例：-DxO_DeepPRIME XD2s_XD。元名の拡張子を除いた部分から文字列をすべて削除し、その後でテンプレートを適用します。英字の大小文字は区別します。テンプレートの固定文字や他のメタデータは削除しません。', width_in_chars = 65, height_in_lines = -1 },
             f:static_text { title = bind 'fprPreviewSource', width_in_chars = 65 },
             f:edit_field { value = bind 'fprPreview', enabled = false, width_in_chars = 65, height_in_lines = 3 },
             f:static_text { title = '初期サンプル：撮影日時 2026-10-08 12:34:56、FUJIFILM / X-H2S / FUJIFILM / XF100-400mm、PROVIA、元名 DSCF1234、JPEG。「選択中の写真」で更新後は実ファイルの情報を使います。最終対象・衝突名・長さは保存時に確認します。', width_in_chars = 65, height_in_lines = -1 },
@@ -168,6 +194,27 @@ function Dialog.sections(f, properties)
             f:static_text { title = 'ON の場合、新しい書き出し JPEG の作業コピーから来歴と他の JUMBF 情報を除去します。元 RAW / JPG / XMP は変更しません。削除・画像保持の検証に失敗した写真は保存しません。', width_in_chars = 65, height_in_lines = -1 },
             f:static_text { title = bind 'fprExportStatus', width_in_chars = 65, height_in_lines = -1 },
             f:static_text { title = '同名時は _001、_002 を付加し、既存ファイルを上書きしません。「このカタログに追加」とスタックへの追加は適用しません。', width_in_chars = 65, height_in_lines = -1 },
+        },
+    }
+end
+
+function Dialog.postProcessingSections(f, properties)
+    return {
+        {
+            title = '後処理', bind_to_object = properties,
+            f:popup_menu { value = bind 'fprPostProcessing', items = {
+                { title = '何もしない', value = 'none' },
+                { title = 'Finder / Explorerで保存先を表示', value = 'reveal' },
+                { title = '指定したアプリケーションで開く', value = 'open_application' },
+            } },
+            f:static_text { title = '「指定したアプリケーションで開く」で使用するアプリ', width_in_chars = 65 },
+            f:edit_field { value = bind 'fprPostProcessingApplication', immediate = true, width_in_chars = 65 },
+            f:push_button { title = 'アプリケーションを選択…', action = function()
+                local paths = dependencies.dialogs.runOpenPanel { title = '書き出したJPEGを開くアプリケーション',
+                    canChooseFiles = true, canChooseDirectories = false, allowsMultipleSelection = false, fileTypes = { 'app', 'exe' } }
+                if paths and paths[1] then properties.fprPostProcessingApplication = paths[1] end
+            end },
+            f:static_text { title = '保存とC2PA処理に成功した最終JPEGだけを渡します。保存先の表示はフォルダーごとに1回です。キャンセル時は後処理を実行しません。', width_in_chars = 65, height_in_lines = -1 },
         },
     }
 end

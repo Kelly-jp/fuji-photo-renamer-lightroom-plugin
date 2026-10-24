@@ -148,3 +148,9 @@ ExportArtifact は SDK の型・生成先・元写真と既知入力パスを照
 ## Phase 12 の配布境界
 
 配布の取得・SHA-256検証・OS依存の組立はNode.js、アーカイブの安全な展開とZIP生成はPython標準ライブラリに分離します。プラグインの読取・命名・保存APIは変更せず、既存の同梱パスへ実行依存を配置します。macOSはユーザー指示によりApple Silicon専用です。Macランチャーだけが同梱PerlとExifToolを起動し、coreへランタイム・OS依存を持ち込みません。[ADR 0002](adr/0002-bundled-exiftool.md)
+
+## 元名の事前整形と保存後の操作
+
+純coreのFilenameExclusionsが元名のstemを処理し、その値をTokenResolverのoriginalへ渡します。展開後文字列を一括削除する処理にはしません。UIとadapterは同じcoreを使います。
+
+ExportPostProcessingは公開LrShell APIの境界です。adapterが成功保存の最終パスを集め、全画像処理後に指定操作へ渡します。ソースや一時パスを渡さず、例外時は保存成功と区別した警告にします。取消時は実行しません。透かしはSDKの標準レンダリングへ任せます。[SDK根拠・処理順](filename-cleanup-export-options.md)

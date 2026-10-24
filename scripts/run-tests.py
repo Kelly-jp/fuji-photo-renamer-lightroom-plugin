@@ -11,12 +11,12 @@ ROOT = Path(__file__).resolve().parents[1]
 SUITES = {
     "core": [
         "filename_safety_test", "jpeg_integrity_test", "manufacturer_normalizer_test",
-        "metadata_resolver_test", "template_engine_test",
+        "metadata_resolver_test", "template_engine_test", "filename_exclusions_test",
     ],
     "sdk": [
         "export_artifact_test", "export_dialog_test", "export_pipeline_test",
         "export_preview_test", "metadata_reader_test", "metadata_source_resolver_test",
-        "phase1_provider_test",
+        "phase1_provider_test", "export_post_processing_test",
     ],
     "native": [
         "c2pa_native_test", "exiftool_read_test", "export_pipeline_native_test",

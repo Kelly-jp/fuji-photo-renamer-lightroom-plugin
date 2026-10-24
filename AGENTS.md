@@ -4,6 +4,8 @@
 
 Adobe Lightroom Classic専用の写真書き出しプラグインです。Lua / Lightroom Classic SDKを使い、Windows x64 / macOS Apple Siliconを対象とします。Intel Macはユーザー指示により対象外です。Phase 12のExifTool同梱・OS別ZIPを実装・自動検証しました。Windows実機は環境がなく保留です。Phase 12の結果報告後は作業を止め、指示なしに公開リリースや対応範囲の拡大を行わないでください。
 
+追加指示により元名の除外文字列・標準透かし・書き出し後の表示/指定アプリ起動を実装しています。除外は元名のstemだけへ適用し、その後にテンプレート展開します。最終JPEGだけを後処理へ渡します。仕様・SDK出典は`docs/filename-cleanup-export-options.md`に従ってください。
+
 ## 構成と設計の基準
 
 - `src/FujiPhotoRenamer.lrplugin/`: プラグイン本体。Phase 1 はルートの `Info.lua` と `ExportServiceProvider.lua`、Phase 2 は `infrastructure/ExifTool.lua`、Phase 3 は `infrastructure/MetadataSourceResolver.lua`、Phase 4〜7 は `core/MetadataResolver.lua`、`ManufacturerNormalizer.lua`、`TemplateParser.lua`、`TokenResolver.lua`、`FilenameSanitizer.lua`、`CollisionResolver.lua` と統合診断を使用します。Phase 8 は `ui/ExportDialog.lua` に UI とサンプルプレビューを分離します。Phase 9 はルート登録入口から `lightroom/ExportServiceProvider.lua` に処理を委譲し、`infrastructure/MetadataReader.lua` と `FileSystem.lua` で取得・保存を接続します。Phase 10 は `ExportArtifact.lua` に所有確認、`core/JpegIntegrity.lua` にバイト保持検証を分離し、ExifTool の新規出力だけを処理します。

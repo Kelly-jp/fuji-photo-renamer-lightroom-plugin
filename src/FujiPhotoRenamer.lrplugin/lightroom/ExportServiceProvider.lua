@@ -5,7 +5,7 @@ local exportDialog = assert(context.ui)
 
 local provider = {
     exportPresetFields = exportDialog.exportPresetFields,
-    showSections = { 'exportLocation', 'fileSettings', 'imageSettings', 'outputSharpening', 'metadata' },
+    showSections = { 'exportLocation', 'fileSettings', 'imageSettings', 'outputSharpening', 'metadata', 'watermarking' },
     allowFileFormats = { 'JPEG' },
     canExportVideo = false,
     canExportToTemporaryLocation = false,
@@ -33,6 +33,10 @@ end
 
 function provider.sectionsForTopOfDialog(f, propertyTable)
     return exportDialog.sections(f, propertyTable)
+end
+
+function provider.sectionsForBottomOfDialog(f, propertyTable)
+    return exportDialog.postProcessingSections(f, propertyTable)
 end
 
 function provider.updateExportSettings(exportSettings)
@@ -87,8 +91,11 @@ local function saveRendition(rendition, destination, progressScope, settings, se
     if progressScope:isCanceled() then return false, '書き出しがキャンセルされました。' end
     local parsed, parseError = context.parser.parse(settings.fprTemplate)
     if not parsed then return false, parseError.message end
+    local original, filterError = context.exclusions.apply(LrPathUtils.removeExtension(LrPathUtils.leafName(originalPath)), settings.fprExcludedStrings)
+    if not original then return false, filterError.message end
+    if parsed.tokens.Original and not original:find('%S') then return false, '除外文字列の削除後、{Original}に使う元ファイル名が空になりました。' end
     local candidate, tokenError = context.tokens.resolve(parsed, metadata.metadata, {
-        original = LrPathUtils.removeExtension(LrPathUtils.leafName(originalPath)), extension = extension,
+        original = original, extension = extension,
         omitDuplicateManufacturer = settings.fprOmitDuplicateManufacturer,
     })
     if not candidate then return false, tokenError.message end
@@ -98,11 +105,11 @@ local function saveRendition(rendition, destination, progressScope, settings, se
         local path, saveError = context.fileSystem.save(renderedPath, safe.filename, destination, originalPath,
             metadata.paths, progressScope, session)
         if not path then return false, saveError end
-        return true, table.concat(metadata.warnings, '\n')
+        return true, table.concat(metadata.warnings, '\n'), path
     end
     local artifact, artifactError = context.artifacts.capture(rendition, renderedPath, originalPath, metadata.paths)
     if not artifact then return false, artifactError.code .. '：' .. artifactError.message end
-    local ok, saved, message = LrTasks.pcall(function()
+    local ok, saved, message, finalPath = LrTasks.pcall(function()
         local prepared, prepareError = context.reader.prepareC2pa(artifact, { executablePath = settings.executablePath })
         if not prepared then return false, prepareError.code .. '：' .. prepareError.message end
         if progressScope:isCanceled() then return false, 'C2PA 削除後にキャンセルされました。' end
@@ -111,14 +118,14 @@ local function saveRendition(rendition, destination, progressScope, settings, se
         local path, saveError = context.fileSystem.save(stage, safe.filename, destination, originalPath,
             metadata.paths, progressScope, session)
         if not path then return false, saveError end
-        return true
+        return true, nil, path
     end)
     if not ok then saved, message = false, tostring(saved) end
     local cleanupOk, warnings = LrTasks.pcall(context.reader.releaseC2pa, artifact)
     if not cleanupOk then warnings = { '作業コピーの清掃に失敗しました：' .. tostring(warnings) } end
     for _, warning in ipairs(warnings) do metadata.warnings[#metadata.warnings + 1] = warning end
     if not saved then return false, (message or 'C2PA 削除に失敗しました。') .. (#warnings > 0 and '\n' .. table.concat(warnings, '\n') or '') end
-    return true, table.concat(metadata.warnings, '\n')
+    return true, table.concat(metadata.warnings, '\n'), finalPath
 end
 
 function provider.processRenderedPhotos(functionContext, exportContext)
@@ -170,14 +177,14 @@ function provider.processRenderedPhotos(functionContext, exportContext)
     end
     settings.executablePath = executable
     local savedCount, failedCount = 0, 0
-    local session, warnings = {}, {}
+    local session, warnings, savedPaths = {}, {}, {}
 
     for _, rendition in exportContext:renditions { stopIfCanceled = true } do
         if progressScope:isCanceled() then
             break
         end
         if not rendition.wasSkipped then
-            local ok, saved, message = LrTasks.pcall(function()
+            local ok, saved, message, finalPath = LrTasks.pcall(function()
                 if settings.LR_format ~= 'JPEG' or settings.LR_export_destinationType ~= 'tempFolder' then
                     return false, 'JPEG の一時レンダリング設定が適用されていません。'
                 end
@@ -189,12 +196,19 @@ function provider.processRenderedPhotos(functionContext, exportContext)
             end
             if saved then
                 savedCount = savedCount + 1
+                savedPaths[#savedPaths + 1] = finalPath
                 if message and message ~= '' then warnings[#warnings + 1] = message end
             else
                 failedCount = failedCount + 1
                 rendition:uploadFailed(message)
             end
         end
+    end
+
+    if not progressScope:isCanceled() and #savedPaths > 0 then
+        local ok, message = LrTasks.pcall(context.postProcessing.run, settings.fprPostProcessing,
+            settings.fprPostProcessingApplication, savedPaths)
+        if not ok then warnings[#warnings + 1] = 'JPEGは保存済みですが、後処理に失敗しました：' .. tostring(message) end
     end
 
     local status = progressScope:isCanceled() and 'キャンセル' or '処理終了'
@@ -206,10 +220,11 @@ function provider.processRenderedPhotos(functionContext, exportContext)
     if destination.useSubfolder then
         location = location .. ' / ' .. tostring(destination.subfolder or '')
     end
-    LrDialogs.message('Fuji Photo Renamer：' .. status,
-        string.format('保存済み：%d 枚\n失敗：%d 枚\n保存先：%s',
-            savedCount, failedCount, location) .. (#warnings > 0 and '\n警告：\n' .. table.concat(warnings, '\n') or ''),
-        (failedCount > 0 or #warnings > 0) and 'warning' or 'info')
+    if failedCount > 0 or #warnings > 0 then
+        LrDialogs.message('Fuji Photo Renamer：' .. status,
+            string.format('保存済み：%d 枚\n失敗：%d 枚\n保存先：%s',
+                savedCount, failedCount, location) .. (#warnings > 0 and '\n警告：\n' .. table.concat(warnings, '\n') or ''), 'warning')
+    end
     -- Only SDK-generated renditions are transferred; originals remain read-only.
 end
 

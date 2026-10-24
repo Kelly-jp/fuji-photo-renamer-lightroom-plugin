@@ -21,6 +21,7 @@ function Adapter.install(pluginPath)
         return pluginModules[filename]
     end
     local namespaces = {
+        LrShell = {}, -- Post-processing stays disabled in native tests unless explicitly doubled.
         LrPathUtils = {
             isAbsolute = function(path) return path:sub(1, 1) == '/' or path:match('^%a:[/\\]') ~= nil end,
             child = function(parent, child) return parent .. '/' .. child end,

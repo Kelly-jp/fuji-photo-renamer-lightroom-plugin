@@ -8,8 +8,9 @@ for _, kind in ipairs { 'static_text', 'edit_field', 'popup_menu', 'checkbox', '
     factory[kind] = function(_, specification) specification.kind = kind; return specification end
 end
 local namespaces = {
-    LrDialogs = {}, LrFileUtils = {}, LrTasks = {}, LrApplication = {},
-    LrPathUtils = { child = function(parent, leaf) return parent .. '/' .. leaf end },
+    LrDialogs = {}, LrShell = {}, LrFileUtils = { exists = function(path) return path == '/Applications/Editor.app' and 'directory' or false end }, LrTasks = {}, LrApplication = {},
+    LrPathUtils = { child = function(parent, leaf) return parent .. '/' .. leaf end,
+        isAbsolute = function(path) return path:sub(1, 1) == '/' end, extension = function(path) return path:match('%.([^.]*)$') or '' end },
     LrView = { bind = function(key) return { bindingKey = key } end },
 }
 local loader = assert(loadfile(pluginPath .. '/ExportServiceProvider.lua'))
@@ -20,16 +21,21 @@ setfenv(loader, setmetatable({ _PLUGIN = { path = pluginPath },
 local provider = loader()
 local function start(initial) local props, observed = properties(initial); provider.startDialog(props); return props, observed end
 local function findControl(props, key)
-    for _, control in ipairs(provider.sectionsForTopOfDialog(factory, props)[1]) do
-        local binding = control.value or control.title
-        if type(binding) == 'table' and binding.bindingKey == key then return control end
+    for _, builder in ipairs { provider.sectionsForTopOfDialog, provider.sectionsForBottomOfDialog } do
+        for _, section in ipairs(builder(factory, props)) do
+            for _, control in ipairs(section) do
+                local binding = control.value or control.title
+                if type(binding) == 'table' and binding.bindingKey == key then return control end
+            end
+        end
     end
     error('Missing control ' .. key)
 end
 
-test('uses Lightroom standard export location and five persistent settings', function()
-    equal(provider.showSections[1], 'exportLocation'); equal(#provider.exportPresetFields, 5)
-    local expected = { fprTemplate = 'string', fprRawSearchMode = 'string', fprOmitDuplicateManufacturer = 'boolean', fprRemoveC2pa = 'boolean', fprExifToolPath = 'string' }
+test('uses Lightroom standard export location and eight persistent settings', function()
+    equal(provider.showSections[1], 'exportLocation'); equal(#provider.exportPresetFields, 8)
+    local expected = { fprTemplate = 'string', fprRawSearchMode = 'string', fprOmitDuplicateManufacturer = 'boolean', fprRemoveC2pa = 'boolean', fprExifToolPath = 'string',
+        fprExcludedStrings = 'string', fprPostProcessing = 'string', fprPostProcessingApplication = 'string' }
     for _, field in ipairs(provider.exportPresetFields) do equal(type(field.default), expected[field.key]); expected[field.key] = nil end
     equal(next(expected), nil)
 end)
@@ -100,11 +106,11 @@ test('makes sample and actual export behavior explicit', function()
     assert(props.fprExportStatus:find('このテンプレートで保存', 1, true))
 end)
 test('removes observers on close and avoids duplicates on reopening', function()
-    local props, observed = start(); equal(observed(), 5)
-    provider.startDialog(props); equal(observed(), 5)
+    local props, observed = start(); equal(observed(), 8)
+    provider.startDialog(props); equal(observed(), 8)
     provider.endDialog(props, 'cancel'); equal(observed(), 0)
     local preview = props.fprPreview; props.fprTemplate = '{FilmSim}'; equal(props.fprPreview, preview)
-    provider.startDialog(props); equal(observed(), 5); equal(props.fprPreview, 'PROVIA.jpg')
+    provider.startDialog(props); equal(observed(), 8); equal(props.fprPreview, 'PROVIA.jpg')
     provider.endDialog(props, 'changedServiceProvider'); equal(observed(), 0)
     provider.endDialog(props, 'ok'); equal(observed(), 0)
 end)
@@ -138,12 +144,14 @@ test('clears only this provider export blocker when switching services', functio
     provider.startDialog(props); props.LR_cantExportBecause = 'Another provider reason'
     provider.endDialog(props, 'changedServiceProvider'); equal(props.LR_cantExportBecause, 'Another provider reason')
 end)
-test('token buttons append each supported token and immediately update the preview', function()
+test('all token buttons share one row and immediately update the preview', function()
     local props = start { fprTemplate = 'prefix_' }
     local section = provider.sectionsForTopOfDialog(factory, props)[1]
-    local titles = {}
+    local titles, rowCount = {}, 0
     for _, view in ipairs(section) do
         if view.kind == 'row' then
+            rowCount = rowCount + 1
+            equal(#view, 9)
             for _, button in ipairs(view) do
                 props.fprTemplate = 'prefix_'
                 button.action()
@@ -154,6 +162,7 @@ test('token buttons append each supported token and immediately update the previ
         end
     end
     local n = 0; for _ in pairs(titles) do n = n + 1 end
+    equal(rowCount, 1)
     equal(n, 9); equal(titles['{Extension}'], nil); equal(titles['{ISO}'], nil); equal(titles['{FocalLength}'], nil); equal(titles['{Sequence}'], nil)
 end)
 test('migrates the old extension suffix on opening and applying presets', function()
@@ -181,5 +190,74 @@ test('migrates the legacy terminal sequence and extension suffix', function()
     props.fprTemplate = '{Original}_{Sequence}'; equal(props.fprTemplate, '{Original}')
     props.fprTemplate = '{{Sequence}}_{Original}'; equal(props.fprPreview, '{Sequence}_DSCF1234.jpg')
     props.fprTemplate = '{Sequence}_{Original}'; assert(props.LR_cantExportBecause)
+end)
+test('exclusion settings refresh the original token before template formatting', function()
+    local props = start { fprTemplate = 'DSCF_{Original}', fprExcludedStrings = 'DSCF' }
+    equal(props.fprPreview, 'DSCF_1234.jpg')
+    props.fprExcludedStrings = '1234'; equal(props.fprPreview, 'DSCF_DSCF.jpg')
+    equal(findControl(props, 'fprExcludedStrings').height_in_lines, 4)
+end)
+test('a rule removing the sample name does not block exporting unrelated real photos', function()
+    local props = start { fprTemplate = '{Original}', fprExcludedStrings = 'DSCF1234' }
+    assert(props.fprPreview:find('プレビュー', 1, true)); equal(props.LR_cantExportBecause, nil)
+end)
+test('invalid exclusions block exports and recover after editing', function()
+    local props = start(); props.fprExcludedStrings = false; assert(props.LR_cantExportBecause)
+    props.fprExcludedStrings = ''; equal(props.LR_cantExportBecause, nil)
+end)
+test('post-processing settings persist and validate the chosen app', function()
+    local props = start { fprPostProcessing = 'open_application', fprPostProcessingApplication = '/Applications/Editor.app' }
+    equal(provider.sectionsForBottomOfDialog(factory, props)[1].title, '後処理')
+    equal(props.LR_cantExportBecause, nil)
+    equal(findControl(props, 'fprPostProcessing').items[3].value, 'open_application')
+    props.fprPostProcessingApplication = '/missing.app'; assert(props.LR_cantExportBecause)
+    props.fprPostProcessing = 'none'; equal(props.LR_cantExportBecause, nil)
+end)
+test('standard watermark settings are displayed and preserved', function()
+    local found = false
+    for _, section in ipairs(provider.showSections) do if section == 'watermarking' then found = true end end
+    assert(found)
+    local settings = { LR_useWatermark = true, LR_watermarking_id = 'fixture-watermark',
+        LR_export_destinationType = 'specificFolder', LR_export_destinationPathPrefix = '/output' }
+    provider.updateExportSettings(settings)
+    equal(settings.LR_useWatermark, true); equal(settings.LR_watermarking_id, 'fixture-watermark')
+end)
+test('exclusion editing disables export until explicitly completed', function()
+    local props = start { fprTemplate = '{Original}' }
+    local toggle = findControl(props, 'fprExclusionsEditButtonTitle')
+    equal(props.fprExclusionsEditing, false)
+    equal(findControl(props, 'fprExcludedStrings').enabled.bindingKey, 'fprExclusionsEditing')
+    toggle.action(); equal(props.fprExclusionsEditing, true); assert(props.LR_cantExportBecause)
+    props.fprExcludedStrings = 'DSCF\nunused'; equal(props.fprPreview, '1234.jpg'); assert(props.LR_cantExportBecause)
+    assert(not pcall(provider.updateExportSettings, props))
+    toggle.action(); equal(props.fprExclusionsEditing, false); equal(props.LR_cantExportBecause, nil)
+end)
+test('exclusion input explains Mac and Windows newline keys without an append button', function()
+    local props = start { fprExcludedStrings = '-DxO' }
+    local hasInstructions = false
+    for _, view in ipairs(provider.sectionsForTopOfDialog(factory, props)[1]) do
+        assert(view.title ~= '改行を追加')
+        if view.kind == 'static_text' and type(view.title) == 'string' then
+            assert(not view.title:find('編集中は書き出しを無効', 1, true))
+        end
+        if view.kind == 'static_text' and type(view.title) == 'string'
+            and view.title:find('MacはOption＋Return', 1, true)
+            and view.title:find('WindowsはCtrl＋J', 1, true) then
+            hasInstructions = true
+        end
+    end
+    assert(hasInstructions); equal(props.fprExcludedStrings, '-DxO')
+end)
+test('closing and restoring presets does not preserve exclusion editing mode', function()
+    local props = start(); findControl(props, 'fprExclusionsEditButtonTitle').action()
+    assert(props.LR_cantExportBecause)
+    for _, field in ipairs(provider.exportPresetFields) do assert(field.key ~= 'fprExclusionsEditing') end
+    provider.endDialog(props, 'cancel'); equal(props.fprExclusionsEditing, false); equal(props.LR_cantExportBecause, nil)
+    provider.startDialog(props); equal(props.fprExclusionsEditing, false); equal(props.LR_cantExportBecause, nil)
+end)
+test('finishing exclusion editing retains validation errors', function()
+    local props = start(); local toggle = findControl(props, 'fprExclusionsEditButtonTitle')
+    toggle.action(); props.fprExcludedStrings = string.rep('a\n', 129)
+    toggle.action(); equal(props.fprExclusionsEditing, false); assert(props.LR_cantExportBecause)
 end)
 print(string.format('%d Phase 8 SDK-boundary tests passed; Lightroom manual verification remains required.', count))
