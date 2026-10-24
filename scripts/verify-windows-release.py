@@ -7,9 +7,29 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import shutil
 from archive import extract
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def run_runner(plugin, tool, work, arguments, env):
+    work.mkdir()
+    (work / 'arguments.txt').write_text('\n'.join(arguments) + '\n', encoding='utf-8')
+    system_root = next((value for key, value in env.items() if key.upper() == 'SYSTEMROOT'), None)
+    if not system_root:
+        raise ValueError('Windows SystemRoot is missing')
+    powershell = Path(system_root) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
+    result = subprocess.run([str(powershell), '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+                             str(plugin / 'infrastructure/ExifToolRead.ps1'), '-Executable', str(tool),
+                             '-WorkDirectory', str(work), '-TimeoutSeconds', '60'],
+                            env=env, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=80)
+    status = work / 'exit-code.txt'
+    if result.returncode or not status.exists() or status.read_text(encoding='utf-8-sig').strip() != '0':
+        error = work / 'stderr.txt'
+        detail = error.read_text(encoding='utf-8-sig') if error.exists() else result.stderr
+        raise RuntimeError(f'Windows plugin runner failed (exit {result.returncode}): {detail}')
+    return (work / 'stdout.json').read_text(encoding='utf-8-sig').strip()
 
 
 def verify_files(plugin):
@@ -37,12 +57,15 @@ def main():
         tool = plugin / 'vendor/windows/exiftool.exe'
         env = {key: value for key, value in os.environ.items() if not key.upper().startswith('PERL')}
         env['PATH'] = ''
-        fixture = ROOT / 'fixtures/metadata/phase2-sample.jpg'
+        fixture = Path(work) / '写真 sample.jpg'
+        shutil.copyfile(ROOT / 'fixtures/metadata/phase2-sample.jpg', fixture)
         before = hashlib.sha256(fixture.read_bytes()).hexdigest()
+        calls = 0
 
         def run(*arguments):
-            return subprocess.run([str(tool), '-config', '', *arguments], env=env, check=True,
-                                  capture_output=True, text=True, encoding='utf-8', timeout=60).stdout.strip()
+            nonlocal calls
+            calls += 1
+            return run_runner(plugin, tool, Path(work) / f'日本語 work {calls}', arguments, env)
 
         if run('-ver') != lock['exiftoolVersion']:
             raise ValueError('Unexpected bundled ExifTool version')
@@ -51,7 +74,7 @@ def main():
             raise ValueError('Bundled ExifTool did not read the JPEG fixture')
         if before != hashlib.sha256(fixture.read_bytes()).hexdigest():
             raise ValueError('Input JPEG changed')
-        print('Windows bundled ExifTool: version, JPEG read and input hash passed.')
+        print('Windows plugin runner: Unicode installation/work/photo paths, bundled version, JPEG read and input hash passed.')
 
 
 if __name__ == '__main__':

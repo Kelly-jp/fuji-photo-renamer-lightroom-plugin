@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## [0.10.4] - 2026-10-24
+
+### Fixed
+
+- Windowsの日本語設置パスで同梱ExifToolがPerl DLLを見つけられない問題を、既存の8.3短縮パスでの起動により修正。短縮名が利用できない非ASCII設置先・作業先では明確なエラーを表示。
+- Windows checkoutの改行変換による固定dkjsonのハッシュ不一致を防ぎ、原版のLFバイトを保持。
+- Windows上の依存取得を固定URL・SHA-256付きPython HTTPSで実行し、Node.jsのHTTP解析エラーを回避。
+- 公式定義でNode.js 24対応を確認したActionsへ更新し、Node.js 20の非推奨警告に対処。ワークフロー内のNode.jsも24へ統一。
+- PRでWindows ZIP生成と実プラグイン用ランナーの日本語パスでの起動・JPEG読取・入力不変を確認。起動失敗の標準エラーを記録。
+
+### Known limitations
+
+- Windowsの8.3短縮名が利用できない環境で非ASCII設置先・作業先を使う場合は未対応です。短縮名の有効化やOS設定の変更は行いません。
+- Lightroom Classic上のWindows操作は引き続き未検証です。macOSはad-hoc署名のみです。
+
 ## [0.10.3] - 2026-10-24
 
 ### Added

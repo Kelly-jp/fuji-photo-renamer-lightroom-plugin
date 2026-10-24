@@ -6,20 +6,26 @@ on:
     paths:
       - 'src/FujiPhotoRenamer.lrplugin/Info.lua'
       - 'CHANGELOG.md'
+      - '.gitattributes'
       - 'scripts/release.mjs'
       - 'scripts/package.mjs'
       - 'scripts/packaging.mjs'
       - 'tests/release_test.mjs'
+      - 'scripts/verify-windows-release.py'
+      - 'tests/windows_release_test.py'
       - '.github/workflows/release*.yml'
   push:
     branches: [main]
     paths:
       - 'src/FujiPhotoRenamer.lrplugin/Info.lua'
       - 'CHANGELOG.md'
+      - '.gitattributes'
       - 'scripts/release.mjs'
       - 'scripts/package.mjs'
       - 'scripts/packaging.mjs'
       - 'tests/release_test.mjs'
+      - 'scripts/verify-windows-release.py'
+      - 'tests/windows_release_test.py'
       - '.github/workflows/release*.yml'
 
 permissions:
@@ -30,11 +36,54 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5 (node24)
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5 (node24)
         with:
-          node-version: '22'
+          node-version: '24'
       - name: Verify actual repository version, release notes and asset guards
         run: node --test tests/release_test.mjs
+
+  windows-bundle:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5 (node24)
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5 (node24)
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6 (node24)
+        with:
+          python-version: '3.12'
+      # Node 22's HTTP parser aborts on these redirects on Windows; the same lock hashes remain mandatory.
+      - name: Cache fixed sources using Python HTTPS
+        shell: python
+        run: |
+          import hashlib, json, pathlib, shutil, urllib.request
+          sources = json.loads(pathlib.Path('scripts/exiftool-lock.json').read_text(encoding='utf-8'))['sources']
+          cache = pathlib.Path('.cache/downloads')
+          cache.mkdir(parents=True, exist_ok=True)
+          for source in sources.values():
+              target = cache / source['filename']
+              with urllib.request.urlopen(source['url'], timeout=120) as response, target.open('xb') as output:
+                  shutil.copyfileobj(response, output)
+              if hashlib.sha256(target.read_bytes()).hexdigest() != source['sha256']:
+                  raise ValueError('Pinned SHA-256 mismatch: ' + source['filename'])
+      - name: Build and exercise the actual Windows bundle
+        env:
+          PYTHONUTF8: '1'
+        shell: pwsh
+        run: |
+          python tests/windows_release_test.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/prepare-exiftool.mjs --platform windows --python python --offline
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/package.mjs --platform windows --python python
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $archive = @(Get-ChildItem dist/*-windows.zip)
+          if ($archive.Count -ne 1) { throw 'Expected exactly one Windows ZIP' }
+          python scripts/verify-windows-release.py $archive[0].FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
