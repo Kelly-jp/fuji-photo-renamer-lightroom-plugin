@@ -69,7 +69,7 @@ export async function packageTarget(platform, options) {
 
 1. ZIPを解凍し、FujiPhotoRenamer.lrpluginを任意の場所へ置きます。
 2. Lightroom Classicの「ファイル → プラグインマネージャー → 追加」でこのフォルダーを選びます。
-3. 書き出し先「Fuji Photo Renamer — 開発検証版」を選択します。
+3. 書き出し先「Fuji Photo Renamer」を選択します。
 4. ExifToolのパス欄を空欄にします。以前のプリセットに外部ツールのパスが残っている場合も消してください。
 5. テンプレートと保存先を設定し、複製した素材で書き出しを確認します。
 

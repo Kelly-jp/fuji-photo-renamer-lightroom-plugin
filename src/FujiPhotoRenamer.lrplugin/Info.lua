@@ -9,12 +9,12 @@ return {
     LrSdkVersion = 11.0,
     LrSdkMinimumVersion = 11.0,
     LrToolkitIdentifier = 'jp.kelly.fuji-photo-renamer',
-    LrPluginName = 'Fuji Photo Renamer — 開発検証版',
+    LrPluginName = 'Fuji Photo Renamer',
     LrExportServiceProvider = {
-        title = 'Fuji Photo Renamer — 開発検証版',
+        title = 'Fuji Photo Renamer',
         file = 'ExportServiceProvider.lua',
     },
     LrExportMenuItems = diagnosticMenuItems,
     LrLibraryMenuItems = diagnosticMenuItems,
-    VERSION = { major = 0, minor = 10, revision = 1, build = 25 },
+    VERSION = { major = 0, minor = 10, revision = 2, build = 26 },
 }

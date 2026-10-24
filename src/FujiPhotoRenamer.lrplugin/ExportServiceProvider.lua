@@ -5,6 +5,8 @@ local LrTasks = import 'LrTasks'
 local LrView = import 'LrView'
 local LrApplication = import 'LrApplication'
 local LrShell = import 'LrShell'
+local logger = (import 'LrLogger')('FujiPhotoRenamer')
+logger:enable('logfile')
 
 local function loadModule(relativePath, dependencies)
     local path = LrPathUtils.child(_PLUGIN.path, relativePath)
@@ -47,7 +49,7 @@ local exportDialog = loadModule('ui/ExportDialog.lua', {
 
 context.collisions = loadModule('core/CollisionResolver.lua', { sanitizer = sanitizer })
 return loadModule('lightroom/ExportServiceProvider.lua', {
-    dialogs = LrDialogs, fileUtils = LrFileUtils, pathUtils = LrPathUtils, tasks = LrTasks,
+    dialogs = LrDialogs, fileUtils = LrFileUtils, pathUtils = LrPathUtils, tasks = LrTasks, logger = logger,
     parser = parser, tokens = tokens, sanitizer = sanitizer, ui = exportDialog,
     exclusions = exclusions, postProcessing = postProcessing,
     reader = reader, metadataReader = metadataReader, artifacts = context.artifacts,

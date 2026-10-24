@@ -90,7 +90,7 @@ for _, case in ipairs {
         h.run()
         assertEqual(#h.copies, 1)
         assertEqual(#h.errors, 1)
-        assert(h.messages[1][2]:find('保存済み：0', 1, true))
+        assertEqual(#h.messages, 0)
         assertEqual(h.files['/original/DSCF1234.RAF'], 'file')
     end)
 end
