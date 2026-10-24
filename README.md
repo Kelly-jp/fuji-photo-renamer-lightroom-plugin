@@ -76,6 +76,10 @@ fuji-photo-renamer-lightroom-plugin-<version>-windows.zip
 
 依存のバージョン・取得元・SHA-256は`scripts/exiftool-lock.json`で固定しています。準備済みキャッシュだけを使う場合は準備コマンドに`--offline`を追加します。[同梱とパッケージの詳細](docs/packaging.md)
 
+## GitHub Release
+
+`Info.lua`と`CHANGELOG.md`の版をそろえてmainへマージし、`v0.10.2`のようなタグをpushすると、GitHub Actionsがテスト・OS別ZIP生成・Windows同梱ExifToolの確認を行い、4つの配布ファイルを添付したRelease下書きを作成します。自動公開はしません。[準備・公開・失敗時の手順](docs/releases.md)
+
 ## テスト
 
 Lua / luac 5.1を用意し、リポジトリルートで実行します。

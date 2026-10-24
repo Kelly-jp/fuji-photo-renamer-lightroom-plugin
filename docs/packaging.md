@@ -1,5 +1,7 @@
 # パッケージングと ExifTool 同梱
 
+タグからの自動ビルド・OS別検証・Release下書き作成は[リリース手順](releases.md)を参照してください。以下の同梱・ハッシュ検証をGitHub Actionsでも再利用します。
+
 ## 配布要件
 
 Windows / macOSとも、ユーザーによるExifTool、Perl、Homebrewの追加インストールやPATH設定を不要にします。Phase 12では、公式ExifTool 13.59のWindows x64一式と、ExifToolソース＋ソースからビルドしたPerl 5.44.0のmacOS同梱方式を実装・検証します。バイナリはGitへ追加しません。生成できたことと、クリーン環境・Lightroom内で対応を確認できたことは区別します。[現在の検証・手順](phase12-packaging.md)
