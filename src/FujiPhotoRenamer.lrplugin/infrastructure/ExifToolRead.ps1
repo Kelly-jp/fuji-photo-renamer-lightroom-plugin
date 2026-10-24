@@ -10,6 +10,15 @@ $status = 125
 $started = $false
 try {
     $argumentsPath = [IO.Path]::Combine($WorkDirectory, 'arguments.txt')
+    # The upstream launcher uses ANSI paths for its DLL lookup. Reuse existing 8.3 names; never relocate the payload.
+    if ($Executable -match '[^\x00-\x7F]' -or $argumentsPath -match '[^\x00-\x7F]') {
+        $fileSystem = New-Object -ComObject Scripting.FileSystemObject
+        if ($Executable -match '[^\x00-\x7F]') { $Executable = $fileSystem.GetFile($Executable).ShortPath }
+        if ($argumentsPath -match '[^\x00-\x7F]') { $argumentsPath = $fileSystem.GetFile($argumentsPath).ShortPath }
+        if ($Executable -match '[^\x00-\x7F]' -or $argumentsPath -match '[^\x00-\x7F]') {
+            throw 'ExifTool requires an ASCII installation and work path when Windows 8.3 names are unavailable. Move the plugin to an ASCII-only path.'
+        }
+    }
     if ($argumentsPath.Contains('"')) { throw 'Invalid argument file path' }
     $process.StartInfo.FileName = $Executable
     $process.StartInfo.Arguments = '-config "" -charset filename=UTF8 -@ "' + $argumentsPath + '"'
