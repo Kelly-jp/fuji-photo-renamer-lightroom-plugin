@@ -8,6 +8,7 @@ for _, kind in ipairs { 'static_text', 'edit_field', 'popup_menu', 'checkbox', '
     factory[kind] = function(_, specification) specification.kind = kind; return specification end
 end
 local namespaces = {
+        LrLogger = function() return { enable = function() end, warn = function() end } end,
     LrDialogs = {}, LrShell = {}, LrFileUtils = { exists = function(path) return path == '/Applications/Editor.app' and 'directory' or false end }, LrTasks = {}, LrApplication = {},
     LrPathUtils = { child = function(parent, leaf) return parent .. '/' .. leaf end,
         isAbsolute = function(path) return path:sub(1, 1) == '/' end, extension = function(path) return path:match('%.([^.]*)$') or '' end },

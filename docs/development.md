@@ -8,6 +8,17 @@ Lightroom Classicのプラグインマネージャーで`src/FujiPhotoRenamer.lr
 
 更新後はプラグインマネージャーで再読み込みし、書き出し画面を開き直してください。登録パスと表示バージョンは`Info.lua`に一致させます。診断機能は「ファイル（またはライブラリ）→ プラグインエクストラ → メタデータ取得 / 入力ファイル探索を検証…」から利用できます。診断の契約やSDK出典は[文書一覧](README.md)の各Phase記録を参照してください。
 
+## 書き出しログ
+
+処理終了時の集計ダイアログは表示しません。写真の書き出し失敗はSDKの`rendition:uploadFailed()`でLightroomへ通知します。保存成功時のメタデータ警告や後処理失敗は`FujiPhotoRenamer`ログへ記録します。書き出し開始前に続行できない設定・保存先・ツールのエラーはダイアログで通知します。
+
+SDK 14.3のAdobe作成`LrLogger`リファレンスで確認したログの保存先は以下です。
+
+- macOS：`~/Library/Logs/Adobe/Lightroom/LrClassicLogs/`
+- Windows：`%LOCALAPPDATA%\Adobe\Lightroom\Logs\LrClassicLogs\`
+
+SDKに従い`LrLogger('FujiPhotoRenamer')`、`logger:enable('logfile')`、`logger:warn(message)`を使います（いずれもSDK 1.3以降）。ログ保存先とLightroom実機での表示は自動テストのSDKダブルでは確認していません。
+
 ## テスト一式の実行
 
 Python 3、Lua / luac 5.1 を用意します。外部Pythonパッケージは不要です。macOSで実ExifToolも含める場合は、リポジトリのルートで次を実行します。

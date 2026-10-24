@@ -176,8 +176,7 @@ function provider.processRenderedPhotos(functionContext, exportContext)
         return
     end
     settings.executablePath = executable
-    local savedCount, failedCount = 0, 0
-    local session, warnings, savedPaths = {}, {}, {}
+    local session, savedPaths = {}, {}
 
     for _, rendition in exportContext:renditions { stopIfCanceled = true } do
         if progressScope:isCanceled() then
@@ -195,11 +194,9 @@ function provider.processRenderedPhotos(functionContext, exportContext)
                 saved = false
             end
             if saved then
-                savedCount = savedCount + 1
                 savedPaths[#savedPaths + 1] = finalPath
-                if message and message ~= '' then warnings[#warnings + 1] = message end
+                if message and message ~= '' then context.logger:warn(message) end
             else
-                failedCount = failedCount + 1
                 rendition:uploadFailed(message)
             end
         end
@@ -208,22 +205,7 @@ function provider.processRenderedPhotos(functionContext, exportContext)
     if not progressScope:isCanceled() and #savedPaths > 0 then
         local ok, message = LrTasks.pcall(context.postProcessing.run, settings.fprPostProcessing,
             settings.fprPostProcessingApplication, savedPaths)
-        if not ok then warnings[#warnings + 1] = 'JPEGは保存済みですが、後処理に失敗しました：' .. tostring(message) end
-    end
-
-    local status = progressScope:isCanceled() and 'キャンセル' or '処理終了'
-    local standardLocationNames = {
-        desktop = 'デスクトップ', documents = 'ドキュメント', home = 'ホーム', pictures = 'ピクチャ',
-    }
-    local location = destination.kind == 'sourceFolder' and '各写真の元フォルダー'
-        or standardLocationNames[destination.kind] or destination.path or destination.kind or '未選択'
-    if destination.useSubfolder then
-        location = location .. ' / ' .. tostring(destination.subfolder or '')
-    end
-    if failedCount > 0 or #warnings > 0 then
-        LrDialogs.message('Fuji Photo Renamer：' .. status,
-            string.format('保存済み：%d 枚\n失敗：%d 枚\n保存先：%s',
-                savedCount, failedCount, location) .. (#warnings > 0 and '\n警告：\n' .. table.concat(warnings, '\n') or ''), 'warning')
+        if not ok then context.logger:warn('JPEGは保存済みですが、後処理に失敗しました：' .. tostring(message)) end
     end
     -- Only SDK-generated renditions are transferred; originals remain read-only.
 end

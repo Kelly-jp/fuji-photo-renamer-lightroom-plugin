@@ -21,7 +21,7 @@ local function newHarness(options)
     if options.missingRender then files[rendered] = nil end
     if options.missingDirectory then files['/output'] = nil end
     if options.collision then files['/output/test_DSCF1234.jpg'] = options.collision end
-    local state = { copies = {}, errors = {}, messages = {}, waits = 0, files = files, createdDirectories = {} }
+    local state = { copies = {}, errors = {}, messages = {}, warnings = {}, waits = 0, files = files, createdDirectories = {} }
     local progress = {
         isCanceled = function() return options.canceled or state.cancelAfterRender or state.cancelRequested end,
         cancel = function() state.cancelRequested = true end,
@@ -106,6 +106,7 @@ local function newHarness(options)
         dialogs = namespaces.LrDialogs, fileUtils = namespaces.LrFileUtils, pathUtils = namespaces.LrPathUtils,
         tasks = namespaces.LrTasks, ui = ui, parser = parser, tokens = tokens, sanitizer = sanitizer,
         exclusions = exclusions, postProcessing = postProcessing,
+        logger = { warn = function(_, message) state.warnings[#state.warnings + 1] = message end },
         reader = { resolveExecutablePath = function()
             if options.toolException then error('Path check exception') end
             if options.missingTool then return nil, { code = 'ExecutableMissing', message = 'Missing tool' } end
