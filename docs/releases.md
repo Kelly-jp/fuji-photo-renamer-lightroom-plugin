@@ -26,24 +26,24 @@ Actionは確認済みの完全コミットSHAで固定しています。更新�
 ## リリースの準備
 
 1. `src/FujiPhotoRenamer.lrplugin/Info.lua`の`major` / `minor` / `revision`を決める。タグとZIP名にはこの3値を使い、`build`は含めない。同じ3値で別の公開物を出さない。
-2. `CHANGELOG.md`の`Unreleased`から対象の変更を移し、版別の見出しを作る。例えばInfo.luaが`0.10.3`なら以下の形式にする。
+2. `CHANGELOG.md`の`Unreleased`から対象の変更を移し、版別の見出しを作る。例えばInfo.luaが`0.10.4`なら以下の形式にする。
 
    ```markdown
    ## Unreleased
 
-   ## [0.10.3] - YYYY-MM-DD
+   ## [0.10.4] - YYYY-MM-DD
 
    ### Fixed
 
    - リリースに含まれる変更内容。
    ```
 
-   `## 0.10.3`形式も利用可能。対象の見出しは1個、本文は必須。`Unreleased`を代わりに使うことはできない。Releaseノートへは対象見出しの本文だけを採用する。
+   `## 0.10.4`形式も利用可能。対象の見出しは1個、本文は必須。`Unreleased`を代わりに使うことはできない。Releaseノートへは対象見出しの本文だけを採用する。
 
 3. 変更をPRで`main`へマージする。ローカル確認が必要なら、空の出力先を指定して次を実行する（ZIPをビルドする前の検査）。
 
    ```sh
-   node scripts/release.mjs prepare v0.10.3 build/release-preview
+   node scripts/release.mjs prepare v0.10.4 build/release-preview
    ```
 
 4. 最新の`main`でタグを作成し、そのタグだけをpushする。
@@ -51,8 +51,8 @@ Actionは確認済みの完全コミットSHAで固定しています。更新�
    ```sh
    git switch main
    git pull --ff-only origin main
-   git tag -a v0.10.3 -m 'Fuji Photo Renamer v0.10.3'
-   git push origin v0.10.3
+   git tag -a v0.10.4 -m 'Fuji Photo Renamer v0.10.4'
+   git push origin v0.10.4
    ```
 
 タグは正式な`v数字.数字.数字`だけに対応します。先頭ゼロ、`-beta`等の接尾辞、Info.luaと異なる版は拒否します。現在のCHANGELOGが`Unreleased`だけなら、先に版別見出しを用意してください。タグやReleaseはこの機能の導入だけでは作成しません。
@@ -90,7 +90,7 @@ python3 tests/windows_release_test.py
 Windows機では、検証済みWindows ZIPに対して次も実行できます。
 
 ```sh
-python scripts/verify-windows-release.py dist/fuji-photo-renamer-lightroom-plugin-0.10.3-windows.zip
+python scripts/verify-windows-release.py dist/fuji-photo-renamer-lightroom-plugin-0.10.4-windows.zip
 ```
 
 ## 出典
@@ -106,3 +106,13 @@ python scripts/verify-windows-release.py dist/fuji-photo-renamer-lightroom-plugi
 修正ではInfo.luaを0.10.3.27へ更新し、CHANGELOGに0.10.3の配布用ノートを追加しました。以前のUnreleasedに蓄積されていたPhase別の記録は「開発履歴」へ残します。エラーには対象版の見出し例・タグ名と、既存タグの再実行が後からのmain修正を取り込まない旨を表示します。実リポジトリの版を検査するテストと、PRで動くRelease preflightを追加しました。
 
 既存のv0.10.2は元のコミットを参照したままです。mainへ修正をマージしてから、新しいv0.10.3を作成して実行します。既存タグの強制移動・削除や、版別ノートの検証を省略する対処は行いません。新しいRelease処理全体の成否はタグ実行後に確認します。
+
+## Windows起動とNode.js 24への対応
+
+v0.10.3ではmacOSの新規Perlビルド・標準テスト、Lua 680件、ZIP検証7件、解凍したプラグインの実ExifTool経路9件がGitHub上で成功しました。Windowsでは日本語設置先が`???`へ変換されてPerl DLLを探索できず、Release作成前に停止しました。
+
+修正は0.10.4.28として準備しています。PowerShellランナーは非ASCIIの実行パス・引数ファイルパスに既存の8.3短縮名があればそれを使います。原版ExifToolやPerlの変更・移動は行いません。短縮名が利用できない場合はASCIIパスが必要なことを明示して停止します。OSやボリュームの短縮名設定を変更しません。[Microsoft ShortPath資料](https://learn.microsoft.com/en-us/office/vba/language/reference/user-interface-help/shortpath-property)
+
+Release preflightはPRでもWindows ZIPを新規生成し、実プラグインと同じランナーで日本語を含む設置先・作業先・写真パスの起動と読取を検証します。GitHub上のWindows Node.js 22で再現したHTTP解析の異常終了を避け、固定URL・SHA-256を保ったPython HTTPSでキャッシュを準備してから既存スクリプトをoffline実行します。`.gitattributes`でLFを固定し、dkjsonのチェックサムも維持します。
+
+Actionのメジャー番号だけではランタイムを判断せず、各固定コミットの`action.yml`で`runs.using: node24`を確認しています。checkout v5、setup-node v5、setup-python v6、upload-artifact v6、download-artifact v7を採用し、ツール用Node.jsも24にしました。PRのWindowsジョブは成功済みですが、artifact転送を含むRelease全体の確認は新タグの実行結果へ追記します。
