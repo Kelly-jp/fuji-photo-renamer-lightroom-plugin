@@ -5,6 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { releasePlan, verifyAssets } from '../scripts/release.mjs';
 import { sha256 } from '../scripts/packaging.mjs';
+import { pluginVersion } from '../scripts/package.mjs';
 
 const info = 'VERSION = { major = 0, minor = 10, revision = 3, build = 27 }';
 const changelog = '# Changelog\n\n## Unreleased\n\nFuture work.\n\n## [0.10.3] - 2026-10-24\n\n### Fixed\n\n- Release change.\n\n## 0.10.2\n\n- Older change.\n';
@@ -35,6 +36,22 @@ test('requires exactly one nonempty release section, not Unreleased', () => {
         '## 0.10.3\nFirst.\n## [0.10.3]\nDuplicate.']) {
         assert.throws(() => releasePlan('v0.10.3', info, text));
     }
+});
+test('missing notes explain the required section, tag and why rerunning cannot include a fix', () => {
+    assert.throws(() => releasePlan('v0.10.3', info, '## Unreleased\nChanges.'), error => {
+        assert.match(error.message, /## \[0\.10\.3\]/);
+        assert.match(error.message, /before pushing v0\.10\.3/);
+        assert.match(error.message, /original commit/);
+        return true;
+    });
+});
+test('the actual repository version has release notes before a tag is pushed', async () => {
+    const actualInfo = await fs.readFile(new URL('../src/FujiPhotoRenamer.lrplugin/Info.lua', import.meta.url), 'utf8');
+    const actualChangelog = await fs.readFile(new URL('../CHANGELOG.md', import.meta.url), 'utf8');
+    const { version } = pluginVersion(actualInfo);
+    const actual = releasePlan(`v${version}`, actualInfo, actualChangelog);
+    assert.equal(actual.version, version);
+    assert.ok(actual.notes.trim());
 });
 
 async function fixture(callback) {

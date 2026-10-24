@@ -19,29 +19,31 @@
 - 組織・リポジトリでActionsを制限している場合は、使用するGitHub公式のcheckout / setup-node / setup-python / upload-artifact / download-artifactを許可する。
 - Release作成ジョブは自動の`GITHUB_TOKEN`に`contents: write`を指定する。組織ポリシーで許可されているか確認する。PATやDeveloper ID証明書の登録は不要。
 
+版・CHANGELOG・リリース処理を変更するPRとmainへのpushでは、`Release preflight`が実リポジトリのInfo.luaと版別ノートの整合性を確認します。版を更新する場合は、PR時点でその版のノートを用意してください。
+
 Actionは確認済みの完全コミットSHAで固定しています。更新時は公式リポジトリの対応タグと変更内容を確認して差し替えます。ランナーは`latest`を使わず、macOSでは`arm64`も明示確認します。初回はPerlのコンパイルと標準テストのため時間がかかります。現在はビルド済みバイナリのキャッシュ共有を行いません。
 
 ## リリースの準備
 
 1. `src/FujiPhotoRenamer.lrplugin/Info.lua`の`major` / `minor` / `revision`を決める。タグとZIP名にはこの3値を使い、`build`は含めない。同じ3値で別の公開物を出さない。
-2. `CHANGELOG.md`の`Unreleased`から対象の変更を移し、版別の見出しを作る。例えばInfo.luaが`0.10.2`なら以下の形式にする。
+2. `CHANGELOG.md`の`Unreleased`から対象の変更を移し、版別の見出しを作る。例えばInfo.luaが`0.10.3`なら以下の形式にする。
 
    ```markdown
    ## Unreleased
 
-   ## [0.10.2] - YYYY-MM-DD
+   ## [0.10.3] - YYYY-MM-DD
 
    ### Fixed
 
    - リリースに含まれる変更内容。
    ```
 
-   `## 0.10.2`形式も利用可能。対象の見出しは1個、本文は必須。`Unreleased`を代わりに使うことはできない。Releaseノートへは対象見出しの本文だけを採用する。
+   `## 0.10.3`形式も利用可能。対象の見出しは1個、本文は必須。`Unreleased`を代わりに使うことはできない。Releaseノートへは対象見出しの本文だけを採用する。
 
 3. 変更をPRで`main`へマージする。ローカル確認が必要なら、空の出力先を指定して次を実行する（ZIPをビルドする前の検査）。
 
    ```sh
-   node scripts/release.mjs prepare v0.10.2 build/release-preview
+   node scripts/release.mjs prepare v0.10.3 build/release-preview
    ```
 
 4. 最新の`main`でタグを作成し、そのタグだけをpushする。
@@ -49,8 +51,8 @@ Actionは確認済みの完全コミットSHAで固定しています。更新�
    ```sh
    git switch main
    git pull --ff-only origin main
-   git tag -a v0.10.2 -m 'Fuji Photo Renamer v0.10.2'
-   git push origin v0.10.2
+   git tag -a v0.10.3 -m 'Fuji Photo Renamer v0.10.3'
+   git push origin v0.10.3
    ```
 
 タグは正式な`v数字.数字.数字`だけに対応します。先頭ゼロ、`-beta`等の接尾辞、Info.luaと異なる版は拒否します。現在のCHANGELOGが`Unreleased`だけなら、先に版別見出しを用意してください。タグやReleaseはこの機能の導入だけでは作成しません。
@@ -88,7 +90,7 @@ python3 tests/windows_release_test.py
 Windows機では、検証済みWindows ZIPに対して次も実行できます。
 
 ```sh
-python scripts/verify-windows-release.py dist/fuji-photo-renamer-lightroom-plugin-0.10.2-windows.zip
+python scripts/verify-windows-release.py dist/fuji-photo-renamer-lightroom-plugin-0.10.3-windows.zip
 ```
 
 ## 出典
@@ -96,3 +98,11 @@ python scripts/verify-windows-release.py dist/fuji-photo-renamer-lightroom-plugi
 - [GitHubランナーのOSとCPU](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
 - [GitHub CLIのRelease作成・draft・verify-tag](https://cli.github.com/manual/gh_release_create)
 - [Release管理と公開前の添付](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository)
+
+## 初回タグでの停止と修正（2026-10-24）
+
+[v0.10.2の失敗実行](https://github.com/Kelly-jp/fuji-photo-renamer-lightroom-plugin/actions/runs/40088833866)は、コミット`3a8fe07`のCHANGELOGに対象版の見出しがなく、事前検証で停止しました。Apple Siliconの確認とmain包含の確認は成功しており、Perlビルド・Windows検証・Release作成は開始していません。
+
+修正ではInfo.luaを0.10.3.27へ更新し、CHANGELOGに0.10.3の配布用ノートを追加しました。以前のUnreleasedに蓄積されていたPhase別の記録は「開発履歴」へ残します。エラーには対象版の見出し例・タグ名と、既存タグの再実行が後からのmain修正を取り込まない旨を表示します。実リポジトリの版を検査するテストと、PRで動くRelease preflightを追加しました。
+
+既存のv0.10.2は元のコミットを参照したままです。mainへ修正をマージしてから、新しいv0.10.3を作成して実行します。既存タグの強制移動・削除や、版別ノートの検証を省略する対処は行いません。新しいRelease処理全体の成否はタグ実行後に確認します。

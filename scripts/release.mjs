@@ -11,10 +11,12 @@ export function releasePlan(tag, info, changelog) {
         throw new Error('Release tag must be vMAJOR.MINOR.PATCH without a suffix');
     }
     const { version } = pluginVersion(info);
-    if (tag !== `v${version}`) throw new Error('Tag and Info.lua version do not match');
+    if (tag !== `v${version}`) throw new Error(`Tag ${tag} does not match Info.lua version ${version}. Update the version before creating a new tag.`);
     const sections = [...changelog.matchAll(/^## (?:\[([^\]\r\n]+)\]|([^\s\r\n]+))[^\r\n]*\r?$/gm)];
     const matches = sections.filter(entry => (entry[1] ?? entry[2]) === version);
-    if (matches.length !== 1) throw new Error('CHANGELOG must contain exactly one section for the release version');
+    if (matches.length !== 1) {
+        throw new Error(`CHANGELOG.md must contain exactly one section "## [${version}]" with release notes before pushing ${tag}; found ${matches.length}. Unreleased is not used as release notes. An existing tag still points to its original commit; re-running it will not include changes made later on main.`);
+    }
     const entry = matches[0];
     const next = sections.find(candidate => candidate.index > entry.index);
     const notes = changelog.slice(entry.index + entry[0].length, next?.index ?? changelog.length).trim();
