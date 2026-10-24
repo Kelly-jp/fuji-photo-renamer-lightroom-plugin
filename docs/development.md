@@ -111,4 +111,3 @@ fuji-photo-renamer-lightroom-plugin/
 ```
 
 空ディレクトリは `.gitkeep` で保持します。製品版の推奨ファイル配置は [設計](architecture.md#推奨ファイル配置) に記載しています。ルートの provider は SDK の登録入口で、Phase 9 の処理は lightroom/ 配下に委譲します。
-

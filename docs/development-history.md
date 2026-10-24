@@ -67,4 +67,3 @@ RAF / DNG と XMP の拡張子は大小文字不問、stem は完全一致です
 ## Phase 10 の C2PA / JUMBF 削除
 
 「書き出し JPEG の C2PA / Content Credentials を削除する」を ON にすると、SDK生成結果から新しい作業コピーを作り、JUMBFを削除します。元RAW/JPG/XMPは変更しません。ExifTool再読取とJPEGの非JUMBFバイト保持検証が成功したコピーだけを保存します。既定OFFです。64 MiB超や未対応・破損構造、警告・削除失敗は拒否します。[Phase 10 の仕様・手動検証](phase10-c2pa.md)
-

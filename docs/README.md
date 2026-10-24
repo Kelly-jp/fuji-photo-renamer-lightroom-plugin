@@ -35,4 +35,3 @@
 | [Phase 10](phase10-c2pa.md) | C2PA削除・作業出力の所有・JPEG保持検証 |
 | [Phase 11](phase11-testing.md) | 必須ケース対応表・一括実行・手動Integration Test・残課題 |
 | [Phase 12](phase12-packaging.md) | 固定版ExifTool/Perlの同梱・OS別ZIP・ライセンス・配布検証 |
-
