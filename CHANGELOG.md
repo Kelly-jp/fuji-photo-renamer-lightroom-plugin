@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+## [0.10.3] - 2026-10-24
+
+### Added
+
+- Lightroom ClassicのJPEG書き出しで、撮影日時・カメラ・レンズ・フィルムシミュレーション・元名を使う9種のトークンとプレビューに対応。
+- XMP → RAW → JPGの項目単位のメタデータ解決、RAF / DNG探索、同一メーカーの省略、元名から複数の指定文字列を削除する設定を提供。
+- 標準の保存先・透かし、保存後のFinder / Explorer表示・指定アプリ起動に対応。
+- ExifToolを同梱したmacOS Apple Silicon / Windows x64のZIP生成とSHA-256検証、今回生成したJPEGだけのC2PA / JUMBF削除に対応。
+- バージョンタグからOS別検証を経てGitHub Release下書きを作成。公開は手動。
+
+### Fixed
+
+- 処理終了の集計ダイアログを廃止し、警告はログ、書き出し失敗はLightroomのエラー報告へ記録。表示名を「Fuji Photo Renamer」へ統一。
+- v0.10.2のRelease準備が版別CHANGELOGの欠落で停止した問題を解消するため、版とリリースノートをそろえた0.10.3を準備。エラーに対象版・修正方法を表示し、PRで実リポジトリのリリース情報を検証。
+
+### Known limitations
+
+- macOSはad-hoc署名のみで、Developer ID署名・公証はありません。
+- WindowsでのLightroom操作は未検証です。Windows同梱ExifToolの起動確認は初回のReleaseワークフローで実施します。
+
+## 開発履歴（初回リリース準備以前）
+
+以下は開発段階ごとの追加・変更記録です。現在の機能一覧・制約は上の版別ノートとREADMEを参照してください。
+
 ### Fixed
 
 - プラグイン名と書き出し先の表示名から「開発検証版」を削除。
