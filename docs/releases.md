@@ -122,3 +122,13 @@ Actionのメジャー番号だけではランタイムを判断せず、各固�
 v0.10.4ではNode.js 24のmacOSでも依存取得時にUndiciの`assert(!this.paused)`による異常終了を確認しました。0.10.5では`scripts/cache-release-sources.py`をReleaseとWindows事前チェックで共用します。既存lockのURLとSHA-256をそのまま使い、Python標準HTTPSで取得・検証した後、Nodeの準備スクリプトを`--offline`で実行します。既存キャッシュの不一致やダウンロード失敗を無視せず停止し、検証済みバイトだけをリンクで公開して既存ファイルを置換しません。
 
 ローカルでは`python3 scripts/cache-release-sources.py`で同じ取得を実行できます。テストは`python3 tests/release_download_test.py`です。これはHTTPS転送経路の変更で、同梱するExifTool / Perlの版や配布ファイルの許可リストは変えません。
+
+## v0.10.5の全体検証結果（2026-10-24）
+
+[Release draft実行40091716417](https://github.com/Kelly-jp/fuji-photo-renamer-lightroom-plugin/actions/runs/40091716417)でbuild / windows-smoke / releaseの全3ジョブが成功しました。対象は`v0.10.5`、コミット`3df2fac`です。Releaseは未公開の下書きとして作成しました。
+
+macOSの新規Perlビルド・標準テスト、全Lua 680件、ZIPの内容・署名・実ExifTool経路の検証を通過し、同じartifactをWindowsへ転送して日本語設置先・作業先・写真の読取を確認しました。取得方式の変更後も元の固定URL・版・SHA-256を維持しています。
+
+添付されたOS別ZIPとSHA-256の4ファイルをGitHub Releaseから再ダウンロードし、ハッシュ・対象版のノートとの一致・下書き状態を再確認しました。全ジョブのチェック注釈にNode.js 20の非推奨警告はありません。GitHub基盤によるmacOS arm64の待ち時間に関するnoticeだけがbuildにありました。
+
+これはLightroom ClassicのWindows UIの実機確認を意味しません。8.3短縮名が利用できない環境での非ASCII設置先・作業先の制限と、macOSのDeveloper ID署名・公証がない点は継続します。公開は手動です。
