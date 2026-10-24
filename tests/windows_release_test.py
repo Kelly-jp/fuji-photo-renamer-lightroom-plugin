@@ -6,6 +6,8 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
@@ -53,6 +55,22 @@ class IntegrityTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Windows x64'):
                 windows_release.verify_files(self.plugin)
             self.manifest[field] = original
+
+
+class ProcessTest(unittest.TestCase):
+    def test_failure_includes_exit_code_and_captured_diagnostics(self):
+        result = subprocess.CompletedProcess([], 1, 'launcher output', 'missing runtime detail')
+        with patch.object(windows_release.subprocess, 'run', return_value=result):
+            with self.assertRaisesRegex(RuntimeError, 'exit 1') as error:
+                windows_release.run_tool(Path('tool.exe'), ['-ver'], {})
+        self.assertIn('launcher output', str(error.exception))
+        self.assertIn('missing runtime detail', str(error.exception))
+
+    def test_success_returns_stdout_and_preserves_arguments(self):
+        result = subprocess.CompletedProcess([], 0, '13.59\n', '')
+        with patch.object(windows_release.subprocess, 'run', return_value=result) as run:
+            self.assertEqual(windows_release.run_tool(Path('folder with spaces/tool.exe'), ['-ver'], {}), '13.59')
+        self.assertEqual(run.call_args.args[0], [str(Path('folder with spaces/tool.exe')), '-config', '', '-ver'])
 
 
 if __name__ == '__main__':

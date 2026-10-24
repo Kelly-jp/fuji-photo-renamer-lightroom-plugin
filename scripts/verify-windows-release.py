@@ -12,6 +12,15 @@ from archive import extract
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def run_tool(tool, arguments, env):
+    result = subprocess.run([str(tool), '-config', '', *arguments], env=env,
+                            capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=60)
+    if result.returncode:
+        raise RuntimeError(f'Bundled ExifTool failed (exit {result.returncode}).\n'
+                           f'stdout: {result.stdout[-8000:]}\nstderr: {result.stderr[-8000:]}')
+    return result.stdout.strip()
+
+
 def verify_files(plugin):
     manifest = json.loads((plugin / 'PACKAGE_MANIFEST.json').read_text(encoding='utf-8'))
     if manifest['platform'] != 'windows' or manifest['arch'] != 'x64':
@@ -41,8 +50,7 @@ def main():
         before = hashlib.sha256(fixture.read_bytes()).hexdigest()
 
         def run(*arguments):
-            return subprocess.run([str(tool), '-config', '', *arguments], env=env, check=True,
-                                  capture_output=True, text=True, encoding='utf-8', timeout=60).stdout.strip()
+            return run_tool(tool, arguments, env)
 
         if run('-ver') != lock['exiftoolVersion']:
             raise ValueError('Unexpected bundled ExifTool version')
