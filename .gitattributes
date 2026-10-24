@@ -1,0 +1,4 @@
+# Pinned third-party sources and cross-platform scripts must retain their LF bytes.
+* text=auto eol=lf
+*.jpg -text
+*.zip -text

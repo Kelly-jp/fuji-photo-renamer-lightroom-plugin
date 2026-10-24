@@ -6,6 +6,7 @@ on:
     paths:
       - 'src/FujiPhotoRenamer.lrplugin/Info.lua'
       - 'CHANGELOG.md'
+      - '.gitattributes'
       - 'scripts/release.mjs'
       - 'scripts/package.mjs'
       - 'scripts/packaging.mjs'
@@ -18,6 +19,7 @@ on:
     paths:
       - 'src/FujiPhotoRenamer.lrplugin/Info.lua'
       - 'CHANGELOG.md'
+      - '.gitattributes'
       - 'scripts/release.mjs'
       - 'scripts/package.mjs'
       - 'scripts/packaging.mjs'
